@@ -3,3 +3,4 @@ terraform.tfstate
 terraform.tfstate.backup
 *.tf.bak
 *.txt
+terraform.tfvars

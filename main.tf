@@ -8,7 +8,7 @@
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
 resource "aws_iam_role" "lab_ssm_role" {
@@ -36,7 +36,7 @@ resource "aws_iam_policy" "parameter_store_read" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["ssm:GetParameter", "ssm:GetParameters"]
-      Resource = "arn:aws:ssm:us-east-1:*:parameter/digital-labs/*"
+      Resource = "arn:aws:ssm:${var.aws_region}:*:parameter${var.ssm_parameter_path}"
     }]
   })
 }
@@ -81,18 +81,18 @@ resource "aws_security_group" "lab_sg" {
 
 resource "aws_instance" "lab" {
   ami                    = "ami-0f3caa1cf4417e51b"
-  instance_type          = "t3.large"
+  instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.lab_profile.name
   vpc_security_group_ids = [aws_security_group.lab_sg.id]
   user_data              = file("${path.module}/user_data.sh")
 
   root_block_device {
-    volume_size = 30
+    volume_size = var.volume_size_gb
     volume_type = "gp3"
   }
 
   tags = {
-    Name = "sonatype-lab"
+    Name = var.lab_name
   }
 }
 
