@@ -144,7 +144,17 @@ cd digital-labs
 
 ## First-Time Setup
 
-### Step 1 -- Store your license in AWS SSM
+### Step 1 -- Set up remote state backend
+
+Run this once per AWS account. Creates the S3 bucket and DynamoDB table for shared Terraform state.
+
+```powershell
+.\setup-backend.ps1
+```
+
+> Safe to run multiple times -- skips resources that already exist.
+
+### Step 2 -- Store your license in AWS SSM
 
 Run this once per AWS account. It base64-encodes your `.lic` file and stores it securely in SSM Parameter Store.
 
@@ -159,20 +169,19 @@ Optional parameters:
 
 > **Note:** Uses SSM Advanced tier (~$0.05/month). Required because the encoded license exceeds the 4096-character Standard limit.
 
-### Step 2 -- Initialize Terraform
+### Step 3 -- Initialize Terraform
 
 ```powershell
 terraform init
 ```
 
-### Step 3 -- Deploy
+### Step 4 -- Deploy
 
 ```powershell
 terraform apply -var="customer_email=customer@example.com" -var="lease_duration=1w"
 ```
 
 Terraform will output the instance ID and public IP. Full provisioning takes approximately **10 minutes**.
-
 ---
 
 ## Accessing the Lab
