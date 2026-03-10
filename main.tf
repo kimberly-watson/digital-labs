@@ -71,6 +71,14 @@ resource "aws_security_group" "lab_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Lab countdown clock"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -84,7 +92,9 @@ resource "aws_instance" "lab" {
   instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.lab_profile.name
   vpc_security_group_ids = [aws_security_group.lab_sg.id]
-  user_data              = file("${path.module}/user_data.sh")
+  user_data              = templatefile("${path.module}/user_data.sh", {
+    termination_time = local.termination_time
+  })
 
   root_block_device {
     volume_size = var.volume_size_gb
