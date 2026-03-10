@@ -61,7 +61,7 @@ until [ -n "$${GENERATED}" ]; do
 done
 NEXUS_STATUS=""
 until [ "$${NEXUS_STATUS}" = "200" ]; do
-  NEXUS_STATUS=$$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$${GENERATED}" http://localhost:8081/service/rest/v1/status)
+  NEXUS_STATUS=$$(curl -s -o /dev/null -w "%%{http_code}" -u "admin:$${GENERATED}" http://localhost:8081/service/rest/v1/status)
   [ "$${NEXUS_STATUS}" != "200" ] && sleep 15
 done
 curl -s \
