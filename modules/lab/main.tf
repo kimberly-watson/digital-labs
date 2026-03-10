@@ -31,7 +31,7 @@ resource "aws_instance" "lab" {
   # user_data.sh reads the lab_key tag to locate its SSM param.
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "optional"
+    http_tokens                 = "required"
     instance_metadata_tags      = "enabled"
   }
 

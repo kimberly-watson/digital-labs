@@ -210,13 +210,8 @@ resource "aws_security_group" "lab_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  ingress {
-    description = "Lab tutor proxy"
-    from_port   = 8090
-    to_port     = 8090
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # Port 8090 (tutor proxy) intentionally NOT exposed externally.
+  # nginx proxies /chat → localhost:8090 internally. No public access needed.
   egress {
     from_port   = 0
     to_port     = 0
