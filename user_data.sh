@@ -1,8 +1,11 @@
 #!/bin/bash
 set -euxo pipefail
 
+# Injected by Terraform at deploy time
+TERMINATION_TIME="${termination_time}"
+
 # Install Docker
-dnf -y install docker zip
+dnf -y install docker zip python3
 systemctl enable --now docker
 
 # Create directory and pull license key from Parameter Store
@@ -20,7 +23,7 @@ docker run -d \
   --name nexus \
   --restart=always \
   -p 8081:8081 \
-  sonatype/nexus3:latest
+  sonatype/nexus3:3.68.0
 
 # Start IQ Server (Lifecycle + Firewall)
 docker run -d \
@@ -31,13 +34,38 @@ docker run -d \
   -v /opt/sonatype/iq-server/license.lic:/etc/nexus-iq-server/license.lic \
   sonatype/nexus-iq-server:latest
 
-# Wait for Nexus to initialize (~2 min)
-sleep 120
-
-# Set Nexus admin password
-GENERATED=$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+# Wait for IQ Server to be ready, then upload license via REST API
+sleep 60
+IQ_CSRF_COOKIE=""
+until [ -n "$IQ_CSRF_COOKIE" ]; do
+  curl -s -c /tmp/iq-cookies.txt -b /tmp/iq-cookies.txt \
+    -u "admin:admin123" \
+    http://localhost:8070/api/v2/solutions/licensed > /dev/null 2>&1
+  IQ_CSRF_COOKIE=$(grep 'CLM-CSRF-TOKEN' /tmp/iq-cookies.txt | awk '{print $NF}')
+  [ -z "$IQ_CSRF_COOKIE" ] && sleep 15
+done
 curl -s \
-  -u "admin:${GENERATED}" \
+  -c /tmp/iq-cookies.txt \
+  -b /tmp/iq-cookies.txt \
+  -H "X-CLM-CSRF-TOKEN: $IQ_CSRF_COOKIE" \
+  -u "admin:admin123" \
+  -X POST \
+  -F "file=@/opt/sonatype/iq-server/license.lic" \
+  http://localhost:8070/api/v2/product/license
+
+# Wait for Nexus to be ready, then set admin password
+GENERATED=""
+until [ -n "$${GENERATED}" ]; do
+  GENERATED=$$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+  [ -z "$${GENERATED}" ] && sleep 15
+done
+NEXUS_STATUS=""
+until [ "$${NEXUS_STATUS}" = "200" ]; do
+  NEXUS_STATUS=$$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$${GENERATED}" http://localhost:8081/service/rest/v1/status)
+  [ "$${NEXUS_STATUS}" != "200" ] && sleep 15
+done
+curl -s \
+  -u "admin:$${GENERATED}" \
   -X PUT \
   -H "Content-Type: text/plain" \
   --data "admin123" \
@@ -45,26 +73,6 @@ curl -s \
 
 # Wait for IQ Server to initialize (~3 min additional)
 sleep 180
-
-# Establish session and capture CSRF token
-curl -s \
-  -c /tmp/iq-cookies.txt \
-  -b /tmp/iq-cookies.txt \
-  -u "admin:admin123" \
-  http://localhost:8070/api/v2/solutions/licensed > /dev/null
-
-# Extract CSRF token
-CSRF=$(grep 'CLM-CSRF-TOKEN' /tmp/iq-cookies.txt | awk '{print $NF}')
-
-# Upload license to correct endpoint
-curl -s \
-  -c /tmp/iq-cookies.txt \
-  -b /tmp/iq-cookies.txt \
-  -H "X-CLM-CSRF-TOKEN: $CSRF" \
-  -u "admin:admin123" \
-  -X POST \
-  -F "file=@/opt/sonatype/iq-server/license.lic" \
-  http://localhost:8070/api/v2/product/license
 
 # ── FAKE DATA SEEDING ──
 
@@ -129,3 +137,82 @@ curl -s -u "admin:admin123" \
   -X POST \
   "http://localhost:8081/service/rest/v1/components?repository=npm-hosted-lab" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
+
+# ── COUNTDOWN CLOCK ──
+
+mkdir -p /opt/sonatype/countdown
+cat > /opt/sonatype/countdown/index.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="60">
+  <title>Sonatype Digital Lab</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+    .logo { font-size: 1.2rem; font-weight: 700; color: #00b4d8; margin-bottom: 2rem; letter-spacing: 2px; text-transform: uppercase; }
+    h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #aaa; margin-bottom: 3rem; font-size: 0.95rem; }
+    .clock { display: flex; gap: 2rem; margin-bottom: 2rem; }
+    .unit { text-align: center; background: #16213e; border: 1px solid #0f3460; border-radius: 12px; padding: 1.5rem 2rem; min-width: 100px; }
+    .unit.warning { border-color: #e76f51; background: #2d1b15; }
+    .number { font-size: 3rem; font-weight: 700; line-height: 1; }
+    .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-top: 0.5rem; }
+    .message { color: #aaa; font-size: 0.9rem; text-align: center; max-width: 480px; line-height: 1.6; }
+    .warning-msg { color: #e76f51; font-weight: 600; margin-bottom: 0.5rem; }
+    .expires { margin-top: 2rem; font-size: 0.8rem; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="logo">Sonatype Digital Lab</div>
+  <h1>Your Lab Time Remaining</h1>
+  <p class="subtitle">This environment will automatically shut down when the timer expires.</p>
+  <div class="clock" id="clock">
+    <div class="unit" id="unit-days"><div class="number" id="days">--</div><div class="label">Days</div></div>
+    <div class="unit" id="unit-hours"><div class="number" id="hours">--</div><div class="label">Hours</div></div>
+    <div class="unit" id="unit-mins"><div class="number" id="mins">--</div><div class="label">Minutes</div></div>
+  </div>
+  <div class="message">
+    <p id="warning-msg"></p>
+    <p>Need more time? Contact your Sonatype representative before expiry.</p>
+  </div>
+  <p class="expires">Scheduled termination: TERMINATION_PLACEHOLDER UTC</p>
+  <script>
+    const termination = new Date("TERMINATION_PLACEHOLDERZ");
+    function update() {
+      const now = new Date(); const diff = termination - now;
+      if (diff <= 0) { document.getElementById("clock").innerHTML = "<p style='color:#e76f51;font-size:1.4rem;'>This lab has expired.</p>"; return; }
+      const days = Math.floor(diff/86400000);
+      const hours = Math.floor((diff%86400000)/3600000);
+      const mins = Math.floor((diff%3600000)/60000);
+      document.getElementById("days").textContent = String(days).padStart(2,"0");
+      document.getElementById("hours").textContent = String(hours).padStart(2,"0");
+      document.getElementById("mins").textContent = String(mins).padStart(2,"0");
+      const warning = diff < 172800000;
+      ["unit-days","unit-hours","unit-mins"].forEach(id => document.getElementById(id).classList.toggle("warning", warning));
+      document.getElementById("warning-msg").textContent = warning ? "Warning: Less than 48 hours remaining - save your work!" : "";
+    }
+    update(); setInterval(update, 60000);
+  </script>
+</body>
+</html>
+HTMLEOF
+
+# Replace placeholder with actual termination time
+sed -i "s/TERMINATION_PLACEHOLDER/$${TERMINATION_TIME}/g" /opt/sonatype/countdown/index.html
+
+# Serve countdown page on port 8080 via systemd
+cat > /etc/systemd/system/lab-countdown.service << 'SVCEOF'
+[Unit]
+Description=Sonatype Lab Countdown Clock
+After=network.target
+[Service]
+ExecStart=/usr/bin/python3 -m http.server 8080 --directory /opt/sonatype/countdown
+Restart=always
+User=root
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+systemctl enable --now lab-countdown

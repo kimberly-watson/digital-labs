@@ -27,3 +27,20 @@ variable "lab_name" {
   type        = string
   default     = "digital-labs-instance"
 }
+
+variable "lease_duration" {
+  description = "How long the lab instance should run before automatic termination. Options: 1w, 2w, 3w, 1mo. Set by Sonatype personnel at deploy time."
+  type        = string
+  default     = "1w"
+
+  validation {
+    condition     = contains(["1w", "2w", "3w", "1mo"], var.lease_duration)
+    error_message = "lease_duration must be one of: 1w, 2w, 3w, 1mo."
+  }
+}
+
+variable "customer_email" {
+  description = "Customer email address for lab expiry notifications. Set by Sonatype personnel at deploy time."
+  type        = string
+  default     = ""
+}
