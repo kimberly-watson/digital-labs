@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o igncr 2>/dev/null || true   # ignore carriage returns if present (CRLF-safe)
 set -euxo pipefail
 
 # Injected by Terraform at deploy time
