@@ -1,9 +1,12 @@
 #!/bin/bash
-set -o igncr 2>/dev/null || true   # ignore carriage returns if present (CRLF-safe)
 set -euxo pipefail
 
-# Injected by Terraform at deploy time
-TERMINATION_TIME="${termination_time}"
+# Read termination time from SSM Parameter Store
+TERMINATION_TIME=$(aws ssm get-parameter \
+  --name "/digital-labs/termination-time" \
+  --region us-east-1 \
+  --query "Parameter.Value" \
+  --output text)
 
 # Install Docker
 dnf -y install docker zip python3
@@ -56,17 +59,17 @@ curl -s \
 
 # Wait for Nexus to be ready, then set admin password
 GENERATED=""
-until [ -n "$${GENERATED}" ]; do
-  GENERATED=$$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
-  [ -z "$${GENERATED}" ] && sleep 15
+until [ -n "$GENERATED" ]; do
+  GENERATED=$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+  [ -z "$GENERATED" ] && sleep 15
 done
 NEXUS_STATUS=""
-until [ "$${NEXUS_STATUS}" = "200" ]; do
-  NEXUS_STATUS=$$(curl -s -o /dev/null -w "%%{http_code}" -u "admin:$${GENERATED}" http://localhost:8081/service/rest/v1/status)
-  [ "$${NEXUS_STATUS}" != "200" ] && sleep 15
+until [ "$NEXUS_STATUS" = "200" ]; do
+  NEXUS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$GENERATED" http://localhost:8081/service/rest/v1/status)
+  [ "$NEXUS_STATUS" != "200" ] && sleep 15
 done
 curl -s \
-  -u "admin:$${GENERATED}" \
+  -u "admin:$GENERATED" \
   -X PUT \
   -H "Content-Type: text/plain" \
   --data "admin123" \
@@ -201,7 +204,7 @@ cat > /opt/sonatype/countdown/index.html << 'HTMLEOF'
 HTMLEOF
 
 # Replace placeholder with actual termination time
-sed -i "s/TERMINATION_PLACEHOLDER/$${TERMINATION_TIME}/g" /opt/sonatype/countdown/index.html
+sed -i "s/TERMINATION_PLACEHOLDER/${TERMINATION_TIME}/g" /opt/sonatype/countdown/index.html
 
 # Serve countdown page on port 8080 via systemd
 cat > /etc/systemd/system/lab-countdown.service << 'SVCEOF'

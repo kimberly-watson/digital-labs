@@ -36,7 +36,7 @@ resource "aws_iam_policy" "parameter_store_read" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["ssm:GetParameter", "ssm:GetParameters"]
-      Resource = "arn:aws:ssm:${var.aws_region}:*:parameter${var.ssm_parameter_path}"
+      Resource = "arn:aws:ssm:${var.aws_region}:*:parameter/digital-labs/*"
     }]
   })
 }
@@ -87,14 +87,19 @@ resource "aws_security_group" "lab_sg" {
   }
 }
 
+resource "aws_ssm_parameter" "termination_time" {
+  name  = "/digital-labs/termination-time"
+  type  = "String"
+  value = local.termination_time
+  overwrite = true
+}
+
 resource "aws_instance" "lab" {
   ami                    = "ami-0f3caa1cf4417e51b"
   instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.lab_profile.name
   vpc_security_group_ids = [aws_security_group.lab_sg.id]
-  user_data              = replace(templatefile("${path.module}/user_data.sh", {
-    termination_time = local.termination_time
-  }), "\r", "")
+  user_data              = file("${path.module}/user_data.sh")
 
   root_block_device {
     volume_size = var.volume_size_gb
