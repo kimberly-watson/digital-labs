@@ -1,0 +1,41 @@
+# cohort.tfvars.example
+# ─────────────────────────────────────────────────────────────────────────────
+# Use this file to deploy multiple lab environments in a single terraform apply.
+# Copy to cohort.tfvars, fill in your values, then run:
+#
+#   terraform apply -var-file=cohort.tfvars -auto-approve
+#
+# Each entry in the map creates one complete lab environment:
+#   - EC2 instance (t3.large / 30GB gp3)
+#   - Nexus Repository CE + IQ Server (Docker)
+#   - Lab portal with countdown, credentials, and AI tutor chat
+#   - Welcome email + 48hr warning + auto-termination
+#
+# The map key (e.g. "alice") becomes part of all AWS resource names,
+# Lambda function names, and the SSM parameter path. Use short,
+# alphanumeric keys with hyphens only (no spaces or underscores).
+# ─────────────────────────────────────────────────────────────────────────────
+
+labs = {
+  "alice" = {
+    customer_email = "alice@example.com"
+    lease_duration = "2w"
+    lab_name       = "digital-labs-alice"   # optional; defaults to "digital-labs-alice"
+  }
+
+  "bob" = {
+    customer_email = "bob@example.com"
+    lease_duration = "2w"
+  }
+
+  "cohort-03" = {
+    customer_email = "carol@example.com"
+    lease_duration = "1mo"
+    lab_name       = "digital-labs-carol-extended"
+  }
+}
+
+# Override defaults if needed for the whole cohort:
+# instance_type  = "t3.large"
+# volume_size_gb = 30
+# lease_duration is set per-lab above

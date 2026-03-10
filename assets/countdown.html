@@ -2,54 +2,149 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="60">
+  <meta http-equiv="refresh" content="300">
   <title>Sonatype Digital Lab</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
-    .logo { font-size: 1.2rem; font-weight: 700; color: #00b4d8; margin-bottom: 2rem; letter-spacing: 2px; text-transform: uppercase; }
+    .logo { font-size: 1.2rem; font-weight: 700; color: #00b4d8; margin-bottom: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
     h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
-    .subtitle { color: #aaa; margin-bottom: 3rem; font-size: 0.95rem; }
-    .clock { display: flex; gap: 2rem; margin-bottom: 2rem; }
+    .subtitle { color: #aaa; margin-bottom: 2rem; font-size: 0.95rem; }
+    .clock { display: flex; gap: 2rem; margin-bottom: 2.5rem; }
     .unit { text-align: center; background: #16213e; border: 1px solid #0f3460; border-radius: 12px; padding: 1.5rem 2rem; min-width: 100px; }
     .unit.warning { border-color: #e76f51; background: #2d1b15; }
     .number { font-size: 3rem; font-weight: 700; line-height: 1; }
     .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-top: 0.5rem; }
-    .message { color: #aaa; font-size: 0.9rem; text-align: center; max-width: 480px; line-height: 1.6; }
-    .warning-msg { color: #e76f51; font-weight: 600; margin-bottom: 0.5rem; }
-    .expires { margin-top: 2rem; font-size: 0.8rem; color: #666; }
+    .warning-msg { color: #e76f51; font-weight: 600; margin-bottom: 1rem; font-size: 0.9rem; text-align: center; min-height: 1.4rem; }
+    .links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem; width: 100%; max-width: 480px; }
+    .link-card { background: #16213e; border: 1px solid #0f3460; border-radius: 12px; padding: 1.25rem 1rem; text-align: center; text-decoration: none; color: #eee; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
+    .link-card:hover { border-color: #00b4d8; background: #1a2a4a; }
+    .link-card .icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .link-card .name { font-size: 0.9rem; font-weight: 600; color: #00b4d8; margin-bottom: 0.25rem; }
+    .link-card .desc { font-size: 0.75rem; color: #aaa; }
+    .creds { background: #16213e; border: 1px solid #0f3460; border-radius: 10px; padding: 0.9rem 1.4rem; font-size: 0.85rem; color: #aaa; text-align: center; margin-bottom: 1.5rem; }
+    .creds strong { color: #eee; font-family: monospace; font-size: 0.95rem; }
+    .expires { font-size: 0.8rem; color: #555; }
+    /* Chat bubble */
+    #chat-bubble { position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px; border-radius: 50%; background: #00b4d8; border: none; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,180,216,0.4); z-index: 1000; }
+    #chat-window { position: fixed; bottom: 5.5rem; right: 2rem; width: 380px; max-height: 520px; background: #16213e; border: 1px solid #0f3460; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 999; overflow: hidden; }
+    #chat-window.open { display: flex; }
+    #chat-header { background: #0f3460; padding: 1rem 1.2rem; font-weight: 600; font-size: 0.95rem; color: #00b4d8; display: flex; justify-content: space-between; align-items: center; }
+    #chat-close { background: none; border: none; color: #aaa; cursor: pointer; font-size: 1.2rem; line-height: 1; }
+    #chat-messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; min-height: 280px; max-height: 360px; }
+    .msg { max-width: 85%; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.88rem; line-height: 1.5; }
+    .msg.user { background: #0f3460; align-self: flex-end; color: #eee; }
+    .msg.assistant { background: #1e3a5f; align-self: flex-start; color: #ddd; }
+    .msg.thinking { color: #888; font-style: italic; }
+    #chat-input-row { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid #0f3460; }
+    #chat-input { flex: 1; background: #0f3460; border: 1px solid #1a4a7a; border-radius: 8px; padding: 0.5rem 0.75rem; color: #eee; font-size: 0.88rem; resize: none; outline: none; }
+    #chat-input::placeholder { color: #666; }
+    #chat-send { background: #00b4d8; border: none; border-radius: 8px; padding: 0.5rem 0.9rem; color: #fff; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
+    #chat-send:disabled { background: #444; cursor: not-allowed; }
   </style>
 </head>
 <body>
   <div class="logo">Sonatype Digital Lab</div>
-  <h1>Your Lab Time Remaining</h1>
+  <h1>Your Lab Environment</h1>
   <p class="subtitle">This environment will automatically shut down when the timer expires.</p>
+
   <div class="clock" id="clock">
     <div class="unit" id="unit-days"><div class="number" id="days">--</div><div class="label">Days</div></div>
     <div class="unit" id="unit-hours"><div class="number" id="hours">--</div><div class="label">Hours</div></div>
     <div class="unit" id="unit-mins"><div class="number" id="mins">--</div><div class="label">Minutes</div></div>
   </div>
-  <div class="message">
-    <p id="warning-msg"></p>
-    <p>Need more time? Contact your Sonatype representative before expiry.</p>
+  <p class="warning-msg" id="warning-msg"></p>
+
+  <div class="links" id="links">
+    <div class="link-card" onclick="openTool(8081, '/')">
+      <div class="icon">&#128230;</div>
+      <div class="name">Nexus Repository</div>
+      <div class="desc">Browse and manage artifacts</div>
+    </div>
+    <div class="link-card" onclick="openTool(8070, '/')">
+      <div class="icon">&#128269;</div>
+      <div class="name">IQ Server</div>
+      <div class="desc">Lifecycle &amp; Firewall</div>
+    </div>
   </div>
+
+  <div class="creds">Username: <strong>admin</strong> &nbsp;&nbsp; Password: <strong>admin123</strong></div>
   <p class="expires">Scheduled termination: TERMINATION_PLACEHOLDER UTC</p>
+
+  <!-- Chat bubble -->
+  <button id="chat-bubble" onclick="toggleChat()" title="Ask the lab tutor">&#129302;</button>
+  <div id="chat-window">
+    <div id="chat-header">
+      <span>Lab Tutor</span>
+      <button id="chat-close" onclick="toggleChat()">&#x2715;</button>
+    </div>
+    <div id="chat-messages">
+      <div class="msg assistant">Hi! I am your Sonatype lab tutor. Ask me anything about Nexus Repository, IQ Server, or your lab environment.</div>
+    </div>
+    <div id="chat-input-row">
+      <textarea id="chat-input" rows="2" placeholder="Ask a question..." onkeydown="handleKey(event)"></textarea>
+      <button id="chat-send" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
   <script>
+    // Open Nexus/IQ using current hostname with explicit port
+    function openTool(port, path) {
+      window.open('http://' + window.location.hostname + ':' + port + path, '_blank');
+    }
+
+    // Countdown timer
     const termination = new Date("TERMINATION_PLACEHOLDERZ");
     function update() {
-      const now = new Date(); const diff = termination - now;
-      if (diff <= 0) { document.getElementById("clock").innerHTML = "<p style='color:#e76f51;font-size:1.4rem;'>This lab has expired.</p>"; return; }
-      const days = Math.floor(diff/86400000);
-      const hours = Math.floor((diff%86400000)/3600000);
-      const mins = Math.floor((diff%3600000)/60000);
-      document.getElementById("days").textContent = String(days).padStart(2,"0");
-      document.getElementById("hours").textContent = String(hours).padStart(2,"0");
-      document.getElementById("mins").textContent = String(mins).padStart(2,"0");
+      const now = new Date(), diff = termination - now;
+      if (diff <= 0) {
+        document.getElementById("clock").innerHTML = "<p style='color:#e76f51;font-size:1.4rem;'>This lab has expired.</p>";
+        return;
+      }
+      document.getElementById("days").textContent = String(Math.floor(diff/86400000)).padStart(2,"0");
+      document.getElementById("hours").textContent = String(Math.floor((diff%86400000)/3600000)).padStart(2,"0");
+      document.getElementById("mins").textContent = String(Math.floor((diff%3600000)/60000)).padStart(2,"0");
       const warning = diff < 172800000;
       ["unit-days","unit-hours","unit-mins"].forEach(id => document.getElementById(id).classList.toggle("warning", warning));
       document.getElementById("warning-msg").textContent = warning ? "Warning: Less than 48 hours remaining - save your work!" : "";
     }
     update(); setInterval(update, 60000);
+
+    // Chat
+    const history = [];
+    function toggleChat() { document.getElementById("chat-window").classList.toggle("open"); }
+    function handleKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+    async function sendMessage() {
+      const input = document.getElementById("chat-input");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      document.getElementById("chat-send").disabled = true;
+      addMsg("user", text);
+      history.push({ role: "user", content: text });
+      const thinking = addMsg("assistant", "Thinking...", true);
+      try {
+        const resp = await fetch("/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history }) });
+        const data = await resp.json();
+        thinking.remove();
+        addMsg("assistant", data.reply);
+        history.push({ role: "assistant", content: data.reply });
+      } catch(e) {
+        thinking.remove();
+        addMsg("assistant", "Sorry, I could not reach the tutor service. Please try again.");
+      }
+      document.getElementById("chat-send").disabled = false;
+      input.focus();
+    }
+    function addMsg(role, text, thinking) {
+      const div = document.createElement("div");
+      div.className = "msg " + role + (thinking ? " thinking" : "");
+      div.textContent = text;
+      const msgs = document.getElementById("chat-messages");
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+      return div;
+    }
   </script>
 </body>
 </html>

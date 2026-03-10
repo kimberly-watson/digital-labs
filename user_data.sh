@@ -5,9 +5,13 @@ REGION=us-east-1
 ASSETS_BUCKET=digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID
 ASSETS_PREFIX=assets
 
-# Read termination time from SSM Parameter Store
+# Discover this lab's key from the EC2 instance tag (set by Terraform at deploy time).
+# The lab_key determines the SSM parameter path, allowing multiple labs to coexist.
+LAB_KEY=$(curl -s http://169.254.169.254/latest/meta-data/tags/instance/lab_key)
+
+# Read termination time from this lab's SSM parameter
 TERMINATION_TIME=$(aws ssm get-parameter \
-  --name "/digital-labs/termination-time" \
+  --name "/digital-labs/${LAB_KEY}/termination-time" \
   --region ${REGION} \
   --query "Parameter.Value" \
   --output text)
@@ -204,3 +208,29 @@ chmod 400 /opt/sonatype/tutor/index.html
 chmod 500 /opt/sonatype/tutor/proxy.py
 
 systemctl enable --now lab-tutor
+
+# == NGINX REVERSE PROXY ==
+dnf -y install nginx
+
+cat > /etc/nginx/conf.d/digital-labs.conf << 'NGINXEOF'
+server {
+    listen 80 default_server;
+
+    # Lab tutor chat API
+    location /chat {
+        proxy_pass http://127.0.0.1:8090/chat;
+        proxy_set_header Host $host;
+    }
+
+    # Portal / countdown clock (default)
+    location / {
+        proxy_pass http://127.0.0.1:8080/;
+        proxy_set_header Host $host;
+    }
+}
+NGINXEOF
+
+# Disable default nginx site
+rm -f /etc/nginx/conf.d/default.conf
+
+systemctl enable --now nginx
