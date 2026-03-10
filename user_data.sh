@@ -5,9 +5,14 @@ REGION=us-east-1
 ASSETS_BUCKET=digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID
 ASSETS_PREFIX=assets
 
+# IMDSv2: get a short-lived token for all metadata calls
+IMDS_TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+
 # Discover this lab's key from the EC2 instance tag (set by Terraform at deploy time).
 # The lab_key determines the SSM parameter path, allowing multiple labs to coexist.
-LAB_KEY=$(curl -s http://169.254.169.254/latest/meta-data/tags/instance/lab_key)
+LAB_KEY=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+  http://169.254.169.254/latest/meta-data/tags/instance/lab_key)
 
 # Read termination time from this lab's SSM parameter
 TERMINATION_TIME=$(aws ssm get-parameter \
@@ -174,18 +179,14 @@ SVCEOF
 systemctl enable --now lab-countdown
 
 # == LAB TUTOR ==
-CLAUDE_API_KEY=$(aws ssm get-parameter \
-  --name "/digital-labs/claude-api-key" \
-  --with-decryption \
-  --region ${REGION} \
-  --query "Parameter.Value" \
-  --output text)
-
+# Note: CLAUDE_API_KEY is fetched by proxy.py at startup from SSM.
+# It is NOT passed via environment or written to any file on disk.
 mkdir -p /opt/sonatype/tutor
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/proxy.py /opt/sonatype/tutor/proxy.py
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/tutor.html /opt/sonatype/tutor/index.html
 
-PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+  http://169.254.169.254/latest/meta-data/public-ipv4)
 TUTOR_SYSTEM_PROMPT="You are a helpful lab tutor for Sonatype Digital Labs. The customer is working in a hands-on lab environment with: Nexus Repository CE at http://${PUBLIC_IP}:8081 and IQ Server at http://${PUBLIC_IP}:8070. Default credentials are admin/admin123. The lab terminates at ${TERMINATION_TIME} UTC. Help the customer understand and use these products. Be concise and practical. Redirect off-topic questions back to Sonatype lab topics."
 
 cat > /etc/systemd/system/lab-tutor.service << TUTORSVCEOF
@@ -196,7 +197,7 @@ After=network.target
 ExecStart=/usr/bin/python3 /opt/sonatype/tutor/proxy.py
 Restart=always
 User=labclock
-Environment=CLAUDE_API_KEY=${CLAUDE_API_KEY}
+Environment=AWS_REGION=${REGION}
 Environment=TUTOR_SYSTEM_PROMPT=${TUTOR_SYSTEM_PROMPT}
 [Install]
 WantedBy=multi-user.target
