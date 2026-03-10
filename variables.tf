@@ -42,5 +42,8 @@ variable "lease_duration" {
 variable "customer_email" {
   description = "Customer email address for lab expiry notifications. Set by Sonatype personnel at deploy time."
   type        = string
-  default     = ""
+  validation {
+    condition     = can(regex("^[^@]+@[^@]+\\.[^@]+$", var.customer_email))
+    error_message = "customer_email must be a valid email address. Set this with -var customer_email=you@example.com at deploy time."
+  }
 }
