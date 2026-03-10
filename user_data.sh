@@ -44,8 +44,8 @@ IQ_CSRF_COOKIE=""
 until [ -n "$IQ_CSRF_COOKIE" ]; do
   curl -s -c /tmp/iq-cookies.txt -b /tmp/iq-cookies.txt \
     -u "admin:admin123" \
-    http://localhost:8070/api/v2/solutions/licensed > /dev/null 2>&1
-  IQ_CSRF_COOKIE=$(grep 'CLM-CSRF-TOKEN' /tmp/iq-cookies.txt | awk '{print $NF}')
+    http://localhost:8070/api/v2/solutions/licensed > /dev/null 2>&1 || true
+  IQ_CSRF_COOKIE=$(grep 'CLM-CSRF-TOKEN' /tmp/iq-cookies.txt | awk '{print $NF}' || true)
   [ -z "$IQ_CSRF_COOKIE" ] && sleep 15
 done
 curl -s \
@@ -60,12 +60,12 @@ curl -s \
 # Wait for Nexus to be ready, then set admin password
 GENERATED=""
 until [ -n "$GENERATED" ]; do
-  GENERATED=$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null)
+  GENERATED=$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null || true)
   [ -z "$GENERATED" ] && sleep 15
 done
 NEXUS_STATUS=""
 until [ "$NEXUS_STATUS" = "200" ]; do
-  NEXUS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$GENERATED" http://localhost:8081/service/rest/v1/status)
+  NEXUS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$GENERATED" http://localhost:8081/service/rest/v1/status || true)
   [ "$NEXUS_STATUS" != "200" ] && sleep 15
 done
 curl -s \
