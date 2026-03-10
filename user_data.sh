@@ -27,6 +27,10 @@ docker run -d \
   --name nexus \
   --restart=always \
   -p 8081:8081 \
+  --log-driver awslogs \
+  --log-opt awslogs-region=us-east-1 \
+  --log-opt awslogs-group=/digital-labs/nexus \
+  --log-opt awslogs-create-group=true \
   sonatype/nexus3:3.68.0
 
 # Start IQ Server (Lifecycle + Firewall)
@@ -36,6 +40,10 @@ docker run -d \
   -p 8070:8070 \
   -p 8071:8071 \
   -v /opt/sonatype/iq-server/license.lic:/etc/nexus-iq-server/license.lic \
+  --log-driver awslogs \
+  --log-opt awslogs-region=us-east-1 \
+  --log-opt awslogs-group=/digital-labs/iq-server \
+  --log-opt awslogs-create-group=true \
   sonatype/nexus-iq-server:latest
 
 # Wait for IQ Server to be ready, then upload license via REST API
@@ -78,7 +86,7 @@ curl -s \
 # Wait for IQ Server to initialize (~3 min additional)
 sleep 180
 
-# ── FAKE DATA SEEDING ──
+# â”€â”€ FAKE DATA SEEDING â”€â”€
 
 # Wait for Nexus to be fully ready
 sleep 30
@@ -142,7 +150,7 @@ curl -s -u "admin:admin123" \
   "http://localhost:8081/service/rest/v1/components?repository=npm-hosted-lab" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
 
-# ── COUNTDOWN CLOCK ──
+# â”€â”€ COUNTDOWN CLOCK â”€â”€
 
 mkdir -p /opt/sonatype/countdown
 cat > /opt/sonatype/countdown/index.html << 'HTMLEOF'
