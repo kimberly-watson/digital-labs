@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="60">
+  <title>Sonatype Digital Lab</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+    .logo { font-size: 1.2rem; font-weight: 700; color: #00b4d8; margin-bottom: 2rem; letter-spacing: 2px; text-transform: uppercase; }
+    h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #aaa; margin-bottom: 3rem; font-size: 0.95rem; }
+    .clock { display: flex; gap: 2rem; margin-bottom: 2rem; }
+    .unit { text-align: center; background: #16213e; border: 1px solid #0f3460; border-radius: 12px; padding: 1.5rem 2rem; min-width: 100px; }
+    .unit.warning { border-color: #e76f51; background: #2d1b15; }
+    .number { font-size: 3rem; font-weight: 700; line-height: 1; }
+    .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-top: 0.5rem; }
+    .message { color: #aaa; font-size: 0.9rem; text-align: center; max-width: 480px; line-height: 1.6; }
+    .warning-msg { color: #e76f51; font-weight: 600; margin-bottom: 0.5rem; }
+    .expires { margin-top: 2rem; font-size: 0.8rem; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="logo">Sonatype Digital Lab</div>
+  <h1>Your Lab Time Remaining</h1>
+  <p class="subtitle">This environment will automatically shut down when the timer expires.</p>
+  <div class="clock" id="clock">
+    <div class="unit" id="unit-days"><div class="number" id="days">--</div><div class="label">Days</div></div>
+    <div class="unit" id="unit-hours"><div class="number" id="hours">--</div><div class="label">Hours</div></div>
+    <div class="unit" id="unit-mins"><div class="number" id="mins">--</div><div class="label">Minutes</div></div>
+  </div>
+  <div class="message">
+    <p id="warning-msg"></p>
+    <p>Need more time? Contact your Sonatype representative before expiry.</p>
+  </div>
+  <p class="expires">Scheduled termination: TERMINATION_PLACEHOLDER UTC</p>
+  <script>
+    const termination = new Date("TERMINATION_PLACEHOLDERZ");
+    function update() {
+      const now = new Date(); const diff = termination - now;
+      if (diff <= 0) { document.getElementById("clock").innerHTML = "<p style='color:#e76f51;font-size:1.4rem;'>This lab has expired.</p>"; return; }
+      const days = Math.floor(diff/86400000);
+      const hours = Math.floor((diff%86400000)/3600000);
+      const mins = Math.floor((diff%3600000)/60000);
+      document.getElementById("days").textContent = String(days).padStart(2,"0");
+      document.getElementById("hours").textContent = String(hours).padStart(2,"0");
+      document.getElementById("mins").textContent = String(mins).padStart(2,"0");
+      const warning = diff < 172800000;
+      ["unit-days","unit-hours","unit-mins"].forEach(id => document.getElementById(id).classList.toggle("warning", warning));
+      document.getElementById("warning-msg").textContent = warning ? "Warning: Less than 48 hours remaining - save your work!" : "";
+    }
+    update(); setInterval(update, 60000);
+  </script>
+</body>
+</html>

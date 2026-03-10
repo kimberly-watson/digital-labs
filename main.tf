@@ -156,6 +156,44 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_policy" {
 
 }
 
+resource "aws_iam_policy" "s3_assets_read" {
+  name = "digital-labs-s3-assets-read"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:GetObject"]
+      Resource = "arn:aws:s3:::digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID/assets/*"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "s3_assets_policy" {
+  role       = aws_iam_role.lab_ssm_role.name
+  policy_arn = aws_iam_policy.s3_assets_read.arn
+}
+
+resource "aws_s3_object" "countdown_html" {
+  bucket = "digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID"
+  key    = "assets/countdown.html"
+  source = "${path.module}/assets/countdown.html"
+  etag   = filemd5("${path.module}/assets/countdown.html")
+}
+
+resource "aws_s3_object" "proxy_py" {
+  bucket = "digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID"
+  key    = "assets/proxy.py"
+  source = "${path.module}/assets/proxy.py"
+  etag   = filemd5("${path.module}/assets/proxy.py")
+}
+
+resource "aws_s3_object" "tutor_html" {
+  bucket = "digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID"
+  key    = "assets/tutor.html"
+  source = "${path.module}/assets/tutor.html"
+  etag   = filemd5("${path.module}/assets/tutor.html")
+}
+
 
 
 
@@ -176,109 +214,43 @@ resource "aws_iam_instance_profile" "lab_profile" {
 
 
 resource "aws_security_group" "lab_sg" {
-
-
   name        = "digital-labs-sg"
-
-
   description = "Allow Nexus UI and outbound traffic"
-
-
-
-
-
   ingress {
-
-
     description = "Nexus UI"
-
-
     from_port   = 8081
-
-
     to_port     = 8081
-
-
     protocol    = "tcp"
-
-
     cidr_blocks = ["0.0.0.0/0"]
-
-
   }
-
-
-
-
-
   ingress {
-
-
     description = "IQ Server / Lifecycle / Firewall UI"
-
-
     from_port   = 8070
-
-
     to_port     = 8070
-
-
     protocol    = "tcp"
-
-
     cidr_blocks = ["0.0.0.0/0"]
-
-
   }
-
-
-
-
-
   ingress {
-
-
     description = "Lab countdown clock"
-
-
     from_port   = 8080
-
-
     to_port     = 8080
-
-
     protocol    = "tcp"
-
-
     cidr_blocks = ["0.0.0.0/0"]
-
-
   }
-
-
-
-
-
+  ingress {
+    description = "Lab tutor proxy"
+    from_port   = 8090
+    to_port     = 8090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   egress {
-
-
     from_port   = 0
-
-
     to_port     = 0
-
-
     protocol    = "-1"
-
-
     cidr_blocks = ["0.0.0.0/0"]
-
-
   }
-
-
 }
-
 
 
 
@@ -321,6 +293,11 @@ resource "aws_instance" "lab" {
 
   user_data              = file("${path.module}/user_data.sh")
 
+  depends_on = [
+    aws_s3_object.countdown_html,
+    aws_s3_object.proxy_py,
+    aws_s3_object.tutor_html,
+  ]
 
 
 
