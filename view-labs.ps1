@@ -1,5 +1,5 @@
 # ============================================================
-# view-labs.ps1  --  Sonatype Digital Labs  Instructor View
+# view-labs.ps1  --  Sonatype Digital Labs  Sonatype Personnel View
 # Run from the digital-labs repo root.
 # Generates a self-contained HTML dashboard and opens it.
 # ============================================================
@@ -30,7 +30,7 @@ $html = '<!DOCTYPE html>' + [char]10
 $html += '<html lang="en"><head>' + [char]10
 $html += '<meta charset="UTF-8">' + [char]10
 $html += '<meta name="viewport" content="width=device-width, initial-scale=1.0">' + [char]10
-$html += '<title>Digital Labs &mdash; Instructor View</title>' + [char]10
+$html += '<title>Digital Labs &mdash; Sonatype Personnel View</title>' + [char]10
 $html += '<style>' + [char]10
 $html += ':root{--bg:#0d1117;--surface:#161b22;--border:#21262d;--border2:#30363d;--text:#e6edf3;--muted:#7d8590;--accent:#58a6ff;--green:#3fb950;--yellow:#d29922;--red:#f85149;--mono:"Consolas","Courier New",monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}' + [char]10
 $html += '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}' + [char]10
@@ -84,7 +84,7 @@ $html += '</style></head><body>' + [char]10
 $html += '<header>' + [char]10
 $html += '  <div class="logo"><div class="logo-icon">&#x1F52C;</div><div>' + [char]10
 $html += '    <div class="logo-text">Sonatype Digital Labs</div>' + [char]10
-$html += '    <div class="logo-sub">Instructor View</div>' + [char]10
+$html += '    <div class="logo-sub">Sonatype Personnel View</div>' + [char]10
 $html += '  </div></div>' + [char]10
 $html += '  <div class="header-right">' + [char]10
 $html += '    <span class="snapshot-time">Snapshot: ' + $timestamp + '</span>' + [char]10
