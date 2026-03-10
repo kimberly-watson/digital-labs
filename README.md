@@ -221,7 +221,7 @@ terraform destroy
 ```
 
 Removes: EC2 instance, Lambda functions, EventBridge schedules, IAM roles, S3 asset objects.
-Does **not** remove: SSM license parameter, SSM Claude API key, S3 state bucket, DynamoDB lock table.
+Does **not** remove: SSM license parameter, SSM Claude API key, S3 state bucket.
 
 > Labs auto-terminate at lease expiry, but manual destroy is faster and avoids residual charges.
 
@@ -273,36 +273,48 @@ Direct port access:
 
 ```
 digital-labs/
-├── main.tf                  # EC2, IAM, security group, S3 asset objects
-├── variables.tf             # All input variables
-├── backend.tf               # S3 remote state config
-├── lambda.tf                # Lambda functions, IAM, packaging
-├── eventbridge.tf           # EventBridge schedules, IAM
-├── user_data.sh             # EC2 boot script
+├── main.tf                    # EC2, IAM, security group, S3 asset objects, module instantiation
+├── variables.tf               # All input variables (single-lab and cohort modes)
+├── backend.tf                 # S3 remote state config (use_lockfile)
+├── cloudwatch.tf              # CloudWatch dashboard (per-lab metrics + container log tails)
+├── cohort.tfvars.example      # Example multi-lab cohort deployment file
+├── user_data.sh               # EC2 boot script (~240 lines)
+├── modules/
+│   └── lab/
+│       ├── main.tf            # EC2 instance, SSM param, IMDSv2
+│       ├── lambda.tf          # Welcomer, notifier, terminator Lambda functions
+│       ├── eventbridge.tf     # Three one-shot EventBridge schedules per lab
+│       ├── variables.tf       # Module inputs
+│       └── outputs.tf         # instance_id, public_ip, lab_url, nexus_url, iq_url, terminates_at
 ├── assets/
-│   ├── countdown.html       # Lab portal (timer + links + chat bubble)
-│   ├── proxy.py             # Lab tutor HTTP proxy (serves on port 8090)
-│   └── tutor.html           # Standalone tutor page (unused; bubble is in portal)
+│   ├── countdown.html         # Lab portal (timer + links + AI chat bubble)
+│   ├── proxy.py               # Lab tutor HTTP proxy (port 8090, internal only)
+│   └── tutor.html             # Standalone tutor page
 ├── lambda/
-│   ├── welcomer.py          # Sends welcome email via SES when portal is ready
-│   ├── notifier.py          # Sends 48hr warning email via SES
-│   └── terminator.py        # Terminates EC2 + cleans up schedules
-├── setup-backend.ps1        # One-time: create S3 + DynamoDB for Terraform state
-├── setup-license.ps1        # One-time: upload license to SSM
-└── CUSTOMER_GUIDE.md        # Customer-facing user guide (no internal info)
+│   ├── welcomer.py            # Sends branded HTML welcome email via SES when portal is ready
+│   ├── notifier.py            # Sends branded HTML 48hr warning email via SES
+│   └── terminator.py          # Terminates EC2 + cleans up all three schedules
+├── view-labs.ps1              # Sonatype Personnel View — generates HTML dashboard from terraform output
+├── open-nexus.ps1             # Opens Nexus in default browser
+├── connect-perm.ps1           # Opens SSM shell session to running instance
+├── setup-backend.ps1          # One-time: create S3 bucket for Terraform state
+├── setup-license.ps1          # One-time: upload Sonatype license to SSM
+└── CUSTOMER_GUIDE.md          # Customer-facing user guide (no internal info)
 ```
 
 ---
 
 ## Backlog
 
-| Item | Priority | Notes |
+| Item | Status | Notes |
 |---|---|---|
-| Factory automation | High | Multi-lab cohort support — deploy N labs from a single command with per-customer variables |
-| SES HTML email | Medium | Replace plain-text welcome/warning emails with branded HTML templates |
-| Custom domain / HTTPS | Medium | Route53 + ACM cert so customers get `https://lab.sonatype.com` instead of raw IP |
-| Lab activity dashboard | Low | CloudWatch dashboard showing login events, API calls per lab |
-| Instructor view | Low | Read-only portal showing all active labs, expiry times, and CloudWatch links |
+| Factory / cohort automation | ✅ Done | `modules/lab/` with `for_each` — deploy N labs from one `terraform apply -var-file=cohort.tfvars` |
+| SES HTML email | ✅ Done | Branded HTML welcome + 48hr warning emails via SES |
+| CloudWatch dashboard | ✅ Done | `cloudwatch.tf` — per-lab Lambda + EC2 metrics + container log tails |
+| Sonatype Personnel View | ✅ Done | `view-labs.ps1` — local HTML dashboard from `terraform output` with live countdowns |
+| SES production access | ⏳ Pending | AWS case 177316227900889 — detailed reply sent, awaiting approval |
+| sonatype.com DKIM DNS | ⏳ Pending | 3 CNAME records submitted to IT — awaiting DNS propagation |
+| Custom domain / HTTPS | 🔜 Blocked | Requires DNS access — Route53 + ACM cert for `https://labs.sonatype.com` |
 
 ---
 

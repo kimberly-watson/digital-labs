@@ -3,4 +3,9 @@ terraform.tfstate
 terraform.tfstate.backup
 *.tf.bak
 *.txt
-terraform.tfvars
+# Terraform build artifacts
+tfplan
+lambda/*.zip
+lambda/tutor.html
+lambda/proxy.py
+
