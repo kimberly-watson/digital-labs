@@ -92,9 +92,9 @@ resource "aws_instance" "lab" {
   instance_type          = var.instance_type
   iam_instance_profile   = aws_iam_instance_profile.lab_profile.name
   vpc_security_group_ids = [aws_security_group.lab_sg.id]
-  user_data              = templatefile("${path.module}/user_data.sh", {
+  user_data              = replace(templatefile("${path.module}/user_data.sh", {
     termination_time = local.termination_time
-  })
+  }), "\r", "")
 
   root_block_device {
     volume_size = var.volume_size_gb
