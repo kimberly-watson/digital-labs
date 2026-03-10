@@ -86,7 +86,7 @@ curl -s \
 # Wait for IQ Server to initialize (~3 min additional)
 sleep 180
 
-# â”€â”€ FAKE DATA SEEDING â”€â”€
+# Ã¢â€â‚¬Ã¢â€â‚¬ FAKE DATA SEEDING Ã¢â€â‚¬Ã¢â€â‚¬
 
 # Wait for Nexus to be fully ready
 sleep 30
@@ -150,7 +150,7 @@ curl -s -u "admin:admin123" \
   "http://localhost:8081/service/rest/v1/components?repository=npm-hosted-lab" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
 
-# â”€â”€ COUNTDOWN CLOCK â”€â”€
+# Ã¢â€â‚¬Ã¢â€â‚¬ COUNTDOWN CLOCK Ã¢â€â‚¬Ã¢â€â‚¬
 
 mkdir -p /opt/sonatype/countdown
 cat > /opt/sonatype/countdown/index.html << 'HTMLEOF'
@@ -214,15 +214,20 @@ HTMLEOF
 # Replace placeholder with actual termination time
 sed -i "s/TERMINATION_PLACEHOLDER/${TERMINATION_TIME}/g" /opt/sonatype/countdown/index.html
 
+# Create unprivileged service account for countdown clock
+useradd -r -s /sbin/nologin -M labclock || true
+chown -R labclock:labclock /opt/sonatype/countdown
+chmod 500 /opt/sonatype/countdown
+chmod 400 /opt/sonatype/countdown/index.html
 # Serve countdown page on port 8080 via systemd
 cat > /etc/systemd/system/lab-countdown.service << 'SVCEOF'
 [Unit]
 Description=Sonatype Lab Countdown Clock
 After=network.target
 [Service]
-ExecStart=/usr/bin/python3 -m http.server 8080 --directory /opt/sonatype/countdown
+ExecStart=/usr/bin/python3 -c "import http.server,socketserver; h=lambda *a,**k: http.server.SimpleHTTPRequestHandler(*a,directory='/opt/sonatype/countdown',**k); socketserver.TCPServer(('',8080),h).serve_forever()"
 Restart=always
-User=root
+User=labclock
 [Install]
 WantedBy=multi-user.target
 SVCEOF
