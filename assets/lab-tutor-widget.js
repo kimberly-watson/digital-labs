@@ -1,4 +1,5 @@
 (function () {
+  if (document.getElementById('sn-bubble')) return; // already mounted — skip
   var PRODUCT  = window.__snLabProduct || 'the lab environment';
   var ENDPOINT = 'http://' + location.hostname + '/chat';
   var chatHistory = [];
