@@ -41,13 +41,13 @@
       '#sn-send:hover{background:#e04820;}',
       '#sn-send:disabled{background:#2D36EC;opacity:.4;cursor:not-allowed;}'
     ].join('');
-    /* append to <html> so ExtJS body-wipes don't remove it */
-    document.documentElement.appendChild(css);
+    document.head.appendChild(css);
   }
 
-  /* ── mount — appends directly to <html>, not <body> ── */
+  /* ── mount: appends to <html> so ExtJS body-wipes cannot remove it ── */
   function mount() {
     if (document.getElementById('sn-bubble')) return;
+    if (!document.documentElement) return;
     injectStyles();
 
     var bubble = document.createElement('button');
@@ -70,11 +70,9 @@
       '</div>'
     ].join('');
 
-    /* append to <html> element — survives any body replacement by ExtJS/Angular */
     document.documentElement.appendChild(bubble);
     document.documentElement.appendChild(win);
 
-    /* restore conversation */
     if (chatHistory.length === 0) {
       addMsg('Hi! I\'m your Lab Tutor. I can see you\'re working in ' + PRODUCT + '. Ask me anything about what you\'re exploring.', 'bot');
     } else {
@@ -116,16 +114,13 @@
     if (!input || !btn) return;
     var text = input.value.trim();
     if (!text) return;
-
     addMsg(text, 'user');
     chatHistory.push({ role: 'user', content: text });
     input.value = '';
     btn.disabled = true;
-
     var thinking = addMsg('Thinking\u2026', 'think');
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, 30000);
-
     try {
       var resp = await fetch(ENDPOINT, {
         method: 'POST',
@@ -151,12 +146,25 @@
     }
   }
 
-  /* ── boot: wait for window.load so ExtJS/Sencha has fully initialised ── */
+  /* ── boot ──
+     Race condition fix: a defer script runs AFTER HTML parsing. By then,
+     window.load may have ALREADY fired on a fast connection — so the listener
+     would never trigger. We check readyState first and fall through to the
+     listener only if the load event hasn't fired yet.
+     Multiple setTimeout calls ensure we mount after ExtJS settles the DOM
+     regardless of how long its initialisation takes.
+  ── */
   function boot() {
-    /* small delay so the framework finishes its own DOM setup */
-    setTimeout(mount, 800);
+    setTimeout(mount, 500);   // first attempt — catches fast-loading pages
+    setTimeout(mount, 1500);  // second attempt — after ExtJS bootstrap
+    setTimeout(mount, 3500);  // safety net — catches slow initialisations
   }
 
-  window.addEventListener('load', boot);
+  if (document.readyState === 'complete') {
+    // load already fired — run immediately
+    boot();
+  } else {
+    window.addEventListener('load', boot);
+  }
 
 })();
