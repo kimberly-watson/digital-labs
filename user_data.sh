@@ -163,6 +163,10 @@ aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/countdown.html /usr/share/nginx
 sed -i "s/TERMINATION_PLACEHOLDER/${TERMINATION_TIME}/g" /usr/share/nginx/html/index.html
 chmod 644 /usr/share/nginx/html/index.html
 
+# Lab Tutor widget JS — served from port 80 and both product proxy ports
+aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/lab-tutor-widget.js /var/www/html/lab-tutor-widget.js
+chmod 644 /var/www/html/lab-tutor-widget.js
+
 useradd -r -s /sbin/nologin -M labclock || true
 
 # == LAB TUTOR ==
@@ -226,6 +230,13 @@ server {
         proxy_read_timeout 120s;
     }
 
+    # Lab Tutor widget JS (also served via product proxy ports below)
+    location /lab-tutor-widget.js {
+        alias /var/www/html/lab-tutor-widget.js;
+        add_header Content-Type "application/javascript";
+        add_header Access-Control-Allow-Origin "*";
+    }
+
     # Portal / countdown clock — served as static file (no upstream proxy needed)
     location / {
         root /usr/share/nginx/html;
@@ -234,6 +245,57 @@ server {
     }
 }
 NGINXEOF
+
+# Product proxy server blocks — inject Lab Tutor widget into Nexus and IQ Server pages
+# Port 8082 → Nexus (8081)   Port 8072 → IQ Server (8070)
+# Note: IQ Server uses 8070 (UI) and 8071 (internal) — 8072 is the first free port
+cat > /etc/nginx/conf.d/product-proxies.conf << 'PROXIESEOF'
+server {
+    listen 8082;
+    proxy_set_header Accept-Encoding "";
+
+    location /lab-tutor-widget.js {
+        alias /var/www/html/lab-tutor-widget.js;
+        add_header Content-Type "application/javascript";
+        add_header Access-Control-Allow-Origin "*";
+    }
+
+    location / {
+        proxy_pass         http://127.0.0.1:8081;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+        proxy_redirect     http://127.0.0.1:8081/ /;
+        sub_filter          '</body>' '<script>window.__snLabProduct="Nexus Repository";</script><script src="/lab-tutor-widget.js" defer></script></body>';
+        sub_filter_once     on;
+        sub_filter_types    text/html;
+    }
+}
+
+server {
+    listen 8072;
+    proxy_set_header Accept-Encoding "";
+
+    location /lab-tutor-widget.js {
+        alias /var/www/html/lab-tutor-widget.js;
+        add_header Content-Type "application/javascript";
+        add_header Access-Control-Allow-Origin "*";
+    }
+
+    location / {
+        proxy_pass         http://127.0.0.1:8070;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;
+        proxy_redirect     http://127.0.0.1:8070/ /;
+        sub_filter          '</body>' '<script>window.__snLabProduct="IQ Server";</script><script src="/lab-tutor-widget.js" defer></script></body>';
+        sub_filter_once     on;
+        sub_filter_types    text/html;
+    }
+}
+PROXIESEOF
 
 # Disable default nginx site
 rm -f /etc/nginx/conf.d/default.conf
