@@ -45,10 +45,17 @@ class Handler(BaseHTTPRequestHandler):
             length   = int(self.headers.get("Content-Length", 0))
             body     = json.loads(self.rfile.read(length))
             messages = body.get("messages", [])
+            product  = body.get("product", "").strip()
+            system   = SYSTEM_PROMPT
+            if product:
+                system = system + (
+                    f"\n\nContext: the user is currently working inside {product}. "
+                    "Tailor your guidance and examples to that interface."
+                )
             payload  = json.dumps({
                 "model":      MODEL,
                 "max_tokens": 1024,
-                "system":     SYSTEM_PROMPT,
+                "system":     system,
                 "messages":   messages
             }).encode()
             req = urllib.request.Request(
