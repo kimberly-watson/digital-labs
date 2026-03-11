@@ -78,13 +78,16 @@
     .expires { font-size: 0.78rem; color: #F1F5ED; opacity: 0.45; }
     #chat-bubble {
       position: fixed; bottom: 2rem; right: 2rem;
-      width: 58px; height: 58px; border-radius: 50%;
+      height: 48px; border-radius: 24px;
       background: #FE572A; border: none; cursor: pointer;
-      font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem; font-weight: 700;
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0 1.25rem;
       box-shadow: 0 4px 20px rgba(254,87,42,0.5); z-index: 1000;
+      color: #FBFCFA;
       transition: transform 0.15s, box-shadow 0.15s;
     }
-    #chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(254,87,42,0.65); }
+    #chat-bubble:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(254,87,42,0.65); }
     #chat-window {
       position: fixed; bottom: 5.5rem; right: 2rem;
       width: 390px; max-height: 540px;
@@ -156,7 +159,7 @@
     <div class="expires" id="expires-label"></div>
   </div>
 
-  <button id="chat-bubble" onclick="toggleChat()" title="Open Lab Tutor">&#129302;</button>
+  <button id="chat-bubble" onclick="toggleChat()" title="Open Lab Tutor">&#129302; Use Lab Tutor</button>
 
   <div id="chat-window">
     <div id="chat-header">
