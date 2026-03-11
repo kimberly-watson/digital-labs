@@ -6,8 +6,8 @@ def handler(event, context):
     Terminates the lab EC2 instance and deletes all three EventBridge schedules.
     Triggered by the termination EventBridge schedule at lease expiry.
     """
-    ec2 = boto3.client("ec2", region_name=os.environ["AWS_REGION"])
-    scheduler = boto3.client("scheduler", region_name=os.environ["AWS_REGION"])
+    ec2 = boto3.client("ec2", region_name=os.environ["APP_REGION"])
+    scheduler = boto3.client("scheduler", region_name=os.environ["APP_REGION"])
 
     instance_id = os.environ["INSTANCE_ID"]
     schedules_to_delete = [

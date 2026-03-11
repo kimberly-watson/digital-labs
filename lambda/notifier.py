@@ -45,7 +45,7 @@ def build_html(lab_url, termination_time):
 
         <!-- CTA -->
         <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-          <tr><td style="background:#00b4d8;border-radius:6px;">
+          <tr><td style="background:#2D36EC;border-radius:6px;">
             <a href="{lab_url}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">Return to Lab Portal &rarr;</a>
           </td></tr>
         </table>
