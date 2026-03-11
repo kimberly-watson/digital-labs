@@ -1,6 +1,8 @@
 (function () {
   var PRODUCT  = window.__snLabProduct || 'the lab environment';
   var ENDPOINT = 'http://' + location.hostname + '/chat';
+  var chatHistory = window.__snChatHistory = window.__snChatHistory || [];
+  var isOpen      = window.__snChatOpen   = window.__snChatOpen   || false;
 
   /* ── styles ── */
   function injectStyles() {
@@ -22,10 +24,9 @@
       '#sn-hdr{background:#2D36EC;padding:1rem 1.2rem;font-weight:700;font-size:.95rem;',
       'color:#FBFCFA;display:flex;justify-content:space-between;align-items:center;}',
       '#sn-hdr span small{font-weight:400;opacity:.75;margin-left:.5rem;font-size:.8rem;}',
-      '#sn-close{background:none;border:none;color:rgba(255,255,255,.8);cursor:pointer;',
-      'font-size:1.2rem;line-height:1;}',
-      '#sn-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;',
-      'gap:.75rem;min-height:280px;max-height:370px;}',
+      '#sn-close{background:none;border:none;color:rgba(255,255,255,.8);cursor:pointer;font-size:1.2rem;line-height:1;}',
+      '#sn-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem;',
+      'min-height:280px;max-height:370px;}',
       '.sn-msg{max-width:85%;padding:.65rem 1rem;border-radius:14px;font-size:.88rem;line-height:1.55;}',
       '.sn-msg.user{background:#FE572A;align-self:flex-end;color:#FBFCFA;border-bottom-right-radius:4px;}',
       '.sn-msg.bot{background:#0d1245;border:1px solid #2D36EC;align-self:flex-start;',
@@ -40,14 +41,11 @@
       '#sn-send:hover{background:#e04820;}',
       '#sn-send:disabled{background:#2D36EC;opacity:.4;cursor:not-allowed;}'
     ].join('');
-    document.head.appendChild(css);
+    /* append to <html> so ExtJS body-wipes don't remove it */
+    document.documentElement.appendChild(css);
   }
 
-  /* ── conversation state (survives DOM rebuilds) ── */
-  var chatHistory = window.__snChatHistory = window.__snChatHistory || [];
-  var isOpen = window.__snChatOpen = window.__snChatOpen || false;
-
-  /* ── mount widget into body ── */
+  /* ── mount — appends directly to <html>, not <body> ── */
   function mount() {
     if (document.getElementById('sn-bubble')) return;
     injectStyles();
@@ -72,11 +70,11 @@
       '</div>'
     ].join('');
 
-    document.body.appendChild(bubble);
-    document.body.appendChild(win);
+    /* append to <html> element — survives any body replacement by ExtJS/Angular */
+    document.documentElement.appendChild(bubble);
+    document.documentElement.appendChild(win);
 
-    /* restore conversation history */
-    var msgs = document.getElementById('sn-msgs');
+    /* restore conversation */
     if (chatHistory.length === 0) {
       addMsg('Hi! I\'m your Lab Tutor. I can see you\'re working in ' + PRODUCT + '. Ask me anything about what you\'re exploring.', 'bot');
     } else {
@@ -93,7 +91,6 @@
     });
   }
 
-  /* ── helpers ── */
   function addMsg(text, cls) {
     var msgs = document.getElementById('sn-msgs');
     if (!msgs) return;
@@ -110,34 +107,31 @@
     if (!win) return;
     win.classList.toggle('open');
     isOpen = window.__snChatOpen = win.classList.contains('open');
-    if (isOpen) {
-      var input = document.getElementById('sn-input');
-      if (input) input.focus();
-    }
+    if (isOpen) { var i = document.getElementById('sn-input'); if (i) i.focus(); }
   }
 
   async function sendMessage() {
-    var input   = document.getElementById('sn-input');
-    var sendBtn = document.getElementById('sn-send');
-    if (!input || !sendBtn) return;
+    var input = document.getElementById('sn-input');
+    var btn   = document.getElementById('sn-send');
+    if (!input || !btn) return;
     var text = input.value.trim();
     if (!text) return;
 
     addMsg(text, 'user');
     chatHistory.push({ role: 'user', content: text });
     input.value = '';
-    sendBtn.disabled = true;
+    btn.disabled = true;
 
     var thinking = addMsg('Thinking\u2026', 'think');
-    var controller = new AbortController();
-    var timer = setTimeout(function () { controller.abort(); }, 30000);
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 30000);
 
     try {
       var resp = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: chatHistory, product: PRODUCT }),
-        signal: controller.signal
+        signal: ctrl.signal
       });
       clearTimeout(timer);
       var data = await resp.json();
@@ -148,37 +142,21 @@
     } catch (err) {
       clearTimeout(timer);
       if (thinking && thinking.parentNode) thinking.remove();
-      var msg = err.name === 'AbortError'
+      addMsg(err.name === 'AbortError'
         ? 'Request timed out \u2014 please try again.'
-        : 'The tutor is not available right now. Please try again in a moment.';
-      addMsg(msg, 'think');
+        : 'The tutor is not available right now. Please try again in a moment.', 'think');
     } finally {
-      var btn = document.getElementById('sn-send');
-      if (btn) btn.disabled = false;
+      var b = document.getElementById('sn-send');
+      if (b) b.disabled = false;
     }
   }
 
-  /* ── MutationObserver: re-mount if Angular/React wipes the DOM ── */
-  function watchAndRemount() {
-    if (!window.MutationObserver) return;
-    var observer = new MutationObserver(function () {
-      if (!document.getElementById('sn-bubble') && document.body) {
-        mount();
-      }
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-  }
-
-  /* ── boot ── */
+  /* ── boot: wait for window.load so ExtJS/Sencha has fully initialised ── */
   function boot() {
-    mount();
-    watchAndRemount();
+    /* small delay so the framework finishes its own DOM setup */
+    setTimeout(mount, 800);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  window.addEventListener('load', boot);
 
 })();
