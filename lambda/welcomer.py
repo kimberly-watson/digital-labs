@@ -39,10 +39,21 @@ def build_html(lab_url, nexus_url, iq_url, termination_time):
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
 
-      <!-- Header -->
-      <tr><td style="background:#2D36EC;padding:32px 40px;">
-        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.75);">SONATYPE CUSTOMER EDUCATION</p>
-        <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#ffffff;">Your Digital Lab is Ready</h1>
+      <!-- Header: Sonatype brand dark navy -->
+      <tr><td style="background:#090B2F;padding:28px 40px 24px;border-bottom:3px solid #2D36EC;">
+        <table cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+          <tr>
+            <td style="vertical-align:middle;padding-right:10px;">
+              <svg width="130" height="28" viewBox="0 0 130 28" xmlns="http://www.w3.org/2000/svg" aria-label="Sonatype" style="display:block;">
+                <polygon points="12,1 21,6 21,16 12,21 3,16 3,6" fill="none" stroke="#DAFF02" stroke-width="1.8"/>
+                <polygon points="12,5.5 17.5,8.5 17.5,15 12,18 6.5,15 6.5,8.5" fill="#DAFF02"/>
+                <text x="29" y="20" font-family="Arial,Helvetica,sans-serif" font-size="17" font-weight="700" fill="#FBFCFA" letter-spacing="-0.3">sonatype</text>
+              </svg>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.55);">CUSTOMER EDUCATION</p>
+        <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">Your Digital Lab is Ready &#x2713;</h1>
       </td></tr>
 
       <!-- Body -->
@@ -78,7 +89,8 @@ def build_html(lab_url, nexus_url, iq_url, termination_time):
         </table>
 
         <!-- Credentials -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1px solid #e0e0e0;border-radius:6px;margin:0 0 28px;">
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="background:#f8f9fa;border:1px solid #e0e0e0;border-radius:6px;margin:0 0 28px;">
           <tr><td style="padding:16px 20px;">
             <p style="margin:0 0 8px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;">Default Credentials</p>
             <p style="margin:0;font-size:14px;color:#333;">
@@ -89,18 +101,21 @@ def build_html(lab_url, nexus_url, iq_url, termination_time):
           </td></tr>
         </table>
 
-        <!-- Expiry notice -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;margin:0 0 20px;">
+        <!-- Expiry notice — brand orange accent -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="background:#fff4f1;border-left:4px solid #FE572A;border-radius:0 6px 6px 0;margin:0 0 20px;">
           <tr><td style="padding:14px 18px;">
-            <p style="margin:0;font-size:13px;color:#7a5c00;">
-              <strong>&#9200; Lab Expiry:</strong> This environment will be automatically shut down on <strong>{termination_time} UTC</strong>.
+            <p style="margin:0;font-size:13px;color:#7a2800;">
+              <strong>&#9200; Lab Expiry:</strong> This environment will be automatically shut down on
+              <strong>{termination_time}</strong>.
               Please save any work before then. Contact your Sonatype representative if you need an extension.
             </p>
           </td></tr>
         </table>
 
         <p style="margin:0;font-size:13px;color:#999;line-height:1.6;">
-          A Lab Tutor AI assistant is available via the chat bubble on your portal page &mdash; ask it anything about Nexus Repository or IQ Server.
+          A Lab Tutor AI assistant is available via the chat bubble on your portal page &mdash;
+          ask it anything about Nexus Repository or IQ Server.
         </p>
       </td></tr>
 
