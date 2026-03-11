@@ -155,28 +155,15 @@ curl -s -u "admin:admin123" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
 
 # == COUNTDOWN CLOCK ==
-mkdir -p /opt/sonatype/countdown
-aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/countdown.html /opt/sonatype/countdown/index.html
-sed -i "s/TERMINATION_PLACEHOLDER/${TERMINATION_TIME}/g" /opt/sonatype/countdown/index.html
+# Served directly as a static file by nginx — no intermediate Python process needed.
+# This avoids the single-threaded TCPServer bottleneck that caused 504s under bot scan load.
+dnf -y install nginx
+
+aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/countdown.html /usr/share/nginx/html/index.html
+sed -i "s/TERMINATION_PLACEHOLDER/${TERMINATION_TIME}/g" /usr/share/nginx/html/index.html
+chmod 644 /usr/share/nginx/html/index.html
 
 useradd -r -s /sbin/nologin -M labclock || true
-chown -R labclock:labclock /opt/sonatype/countdown
-chmod 500 /opt/sonatype/countdown
-chmod 400 /opt/sonatype/countdown/index.html
-
-cat > /etc/systemd/system/lab-countdown.service << 'SVCEOF'
-[Unit]
-Description=Sonatype Lab Countdown Clock
-After=network.target
-[Service]
-ExecStart=/usr/bin/python3 -c "import http.server,socketserver; h=lambda *a,**k: http.server.SimpleHTTPRequestHandler(*a,directory='/opt/sonatype/countdown',**k); socketserver.TCPServer(('',8080),h).serve_forever()"
-Restart=always
-User=labclock
-[Install]
-WantedBy=multi-user.target
-SVCEOF
-
-systemctl enable --now lab-countdown
 
 # == LAB TUTOR ==
 # Note: CLAUDE_API_KEY is fetched by proxy.py at startup from SSM.
@@ -211,8 +198,6 @@ chmod 500 /opt/sonatype/tutor/proxy.py
 systemctl enable --now lab-tutor
 
 # == NGINX REVERSE PROXY ==
-dnf -y install nginx
-
 cat > /etc/nginx/conf.d/digital-labs.conf << 'NGINXEOF'
 server {
     listen 80 default_server;
@@ -221,12 +206,14 @@ server {
     location /chat {
         proxy_pass http://127.0.0.1:8090/chat;
         proxy_set_header Host $host;
+        proxy_read_timeout 120s;
     }
 
-    # Portal / countdown clock (default)
+    # Portal / countdown clock — served as static file (no upstream proxy needed)
     location / {
-        proxy_pass http://127.0.0.1:8080/;
-        proxy_set_header Host $host;
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
     }
 }
 NGINXEOF
