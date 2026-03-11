@@ -3,8 +3,8 @@ import os
 import urllib.request
 import time
 
-ec2 = boto3.client("ec2", region_name=os.environ["AWS_REGION"])
-ses = boto3.client("ses", region_name=os.environ["AWS_REGION"])
+ec2 = boto3.client("ec2", region_name=os.environ["APP_REGION"])
+ses = boto3.client("ses", region_name=os.environ["APP_REGION"])
 
 MAX_WAIT_SECONDS = 600
 POLL_INTERVAL    = 30
@@ -40,8 +40,8 @@ def build_html(lab_url, nexus_url, iq_url, termination_time):
     <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
 
       <!-- Header -->
-      <tr><td style="background:#1a3c6e;padding:32px 40px;">
-        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#7eb8e8;">SONATYPE CUSTOMER EDUCATION</p>
+      <tr><td style="background:#2D36EC;padding:32px 40px;">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.75);">SONATYPE CUSTOMER EDUCATION</p>
         <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#ffffff;">Your Digital Lab is Ready</h1>
       </td></tr>
 
@@ -54,7 +54,7 @@ def build_html(lab_url, nexus_url, iq_url, termination_time):
 
         <!-- CTA button -->
         <table cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
-          <tr><td style="background:#00b4d8;border-radius:6px;">
+          <tr><td style="background:#2D36EC;border-radius:6px;">
             <a href="{lab_url}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">Open Lab Portal &rarr;</a>
           </td></tr>
         </table>
@@ -63,16 +63,16 @@ def build_html(lab_url, nexus_url, iq_url, termination_time):
         <p style="margin:0 0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;">Available Products</p>
         <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
           <tr>
-            <td width="48%" style="background:#f0f7ff;border:1px solid #d0e4f7;border-radius:6px;padding:16px 18px;">
-              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1a3c6e;">&#128230; Nexus Repository CE</p>
+            <td width="48%" style="background:#eef0ff;border:1px solid #c7cbf5;border-radius:6px;padding:16px 18px;">
+              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#2D36EC;">&#128230; Nexus Repository CE</p>
               <p style="margin:0 0 8px;font-size:12px;color:#666;">Browse and manage artifacts</p>
-              <a href="{nexus_url}" style="font-size:12px;color:#00b4d8;text-decoration:none;font-weight:600;">Open &rarr;</a>
+              <a href="{nexus_url}" style="font-size:12px;color:#2D36EC;text-decoration:none;font-weight:600;">Open &rarr;</a>
             </td>
             <td width="4%"></td>
-            <td width="48%" style="background:#f0f7ff;border:1px solid #d0e4f7;border-radius:6px;padding:16px 18px;">
-              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1a3c6e;">&#128269; IQ Server</p>
+            <td width="48%" style="background:#eef0ff;border:1px solid #c7cbf5;border-radius:6px;padding:16px 18px;">
+              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#2D36EC;">&#128269; IQ Server</p>
               <p style="margin:0 0 8px;font-size:12px;color:#666;">Lifecycle &amp; Firewall</p>
-              <a href="{iq_url}" style="font-size:12px;color:#00b4d8;text-decoration:none;font-weight:600;">Open &rarr;</a>
+              <a href="{iq_url}" style="font-size:12px;color:#2D36EC;text-decoration:none;font-weight:600;">Open &rarr;</a>
             </td>
           </tr>
         </table>
