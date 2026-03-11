@@ -203,8 +203,23 @@ resource "aws_security_group" "lab_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  ingress {
+    description = "Nexus Repository + Lab Tutor widget proxy"
+    from_port   = 8082
+    to_port     = 8082
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    description = "IQ Server + Lab Tutor widget proxy"
+    from_port   = 8072
+    to_port     = 8072
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   # Port 8090 (tutor proxy) intentionally NOT exposed externally.
   # nginx proxies /chat → localhost:8090 internally. No public access needed.
+  # Port 8071 is used internally by IQ Server docker-proxy — do not open.
   egress {
     from_port   = 0
     to_port     = 0
