@@ -42,12 +42,23 @@ Labs are deployed with a fixed lease period. All notifications and auto-terminat
 ### Deploying a Customer Lab
 
 ```powershell
-terraform apply -var="customer_email=customer@example.com" -var="lease_duration=2w"
+terraform apply -var="customer_email=customer@example.com" -var="lease_duration=2w" -auto-approve
 ```
 
 > `customer_email` is required and validated. Terraform rejects blank or malformed addresses.
 
 The customer receives a **single welcome email** with one URL. No confirmation step, no AWS access, no Terraform.
+
+### Testing Email Delivery on Yourself
+
+To validate the full email pipeline without waiting for a new deployment, invoke the welcomer Lambda directly against the running lab:
+
+```powershell
+aws lambda invoke --function-name digital-labs-welcomer-default --payload '{}' --region us-east-1 response.json
+cat response.json
+```
+
+This polls the portal until it responds, then sends the welcome email to whatever `customer_email` is set in the Lambda environment. Use your own address when deploying to test end-to-end before sending to a customer.
 
 ---
 
@@ -93,12 +104,12 @@ aws sts get-caller-identity  # verify
 Lab emails are sent from `digital-labs@sonatype.com` via AWS SES. Complete this once:
 
 1. AWS Console → **SES > Identities > Create identity** → Domain: `sonatype.com`
-2. Add the DNS records AWS provides (TXT + CNAME for DKIM)
+2. Add the 3 DKIM CNAME records AWS provides to sonatype.com DNS
 3. AWS Console → **SES > Account dashboard > Request production access**
    - New accounts start in sandbox and can only send to verified addresses
    - Production access is typically approved within a few hours
 
-> Once approved, all lab emails send automatically with no customer action required.
+> **Status (March 2026):** sonatype.com DKIM verified ✅ and SES production access approved ✅ in us-east-1. This step is complete for the current AWS account — no action required.
 > The sender address can be changed via the `ses_from_email` variable (default: `digital-labs@sonatype.com`).
 
 ### Step 5 — Store Claude API key in SSM
@@ -312,8 +323,9 @@ digital-labs/
 | SES HTML email | ✅ Done | Branded HTML welcome + 48hr warning emails via SES |
 | CloudWatch dashboard | ✅ Done | `cloudwatch.tf` — per-lab Lambda + EC2 metrics + container log tails |
 | Sonatype Personnel View | ✅ Done | `view-labs.ps1` — local HTML dashboard from `terraform output` with live countdowns |
-| SES production access | ⏳ Pending | AWS case 177316227900889 — detailed reply sent, awaiting approval |
-| sonatype.com DKIM DNS | ⏳ Pending | 3 CNAME records submitted to IT — awaiting DNS propagation |
+| SES production access | ✅ Done | AWS case 177316227900889 approved March 11, 2026 — 50,000 msg/day, sandbox lifted in us-east-1 |
+| sonatype.com DKIM DNS | ✅ Done | Verified in us-east-1 — confirmed via AWS Health notification March 11, 2026 |
+| Lambda APP_REGION fix | ✅ Done | All three Lambdas standardized to `APP_REGION` env var; deployed March 11, 2026 |
 | Custom domain / HTTPS | 🔜 Blocked | Requires DNS access — Route53 + ACM cert for `https://labs.sonatype.com` |
 
 ---
