@@ -21,10 +21,21 @@ def build_html(lab_url, termination_time):
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
 
-      <!-- Header -->
-      <tr><td style="background:#7a3c00;padding:32px 40px;">
-        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#ffcb8a;">SONATYPE CUSTOMER EDUCATION</p>
-        <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#ffffff;">&#9200; Your Lab Expires in 48 Hours</h1>
+      <!-- Header: Sonatype brand dark navy + blue accent -->
+      <tr><td style="background:#090B2F;padding:28px 40px 24px;border-bottom:3px solid #2D36EC;">
+        <table cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="vertical-align:middle;">
+              <svg width="130" height="28" viewBox="0 0 130 28" xmlns="http://www.w3.org/2000/svg" aria-label="Sonatype" style="display:block;">
+                <polygon points="12,1 21,6 21,16 12,21 3,16 3,6" fill="none" stroke="#DAFF02" stroke-width="1.8"/>
+                <polygon points="12,5.5 17.5,8.5 17.5,15 12,18 6.5,15 6.5,8.5" fill="#DAFF02"/>
+                <text x="29" y="20" font-family="Arial,Helvetica,sans-serif" font-size="17" font-weight="700" fill="#FBFCFA" letter-spacing="-0.3">sonatype</text>
+              </svg>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:14px 0 0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.55);">CUSTOMER EDUCATION</p>
+        <h1 style="margin:6px 0 0;font-size:22px;font-weight:700;color:#ffffff;">&#9200; Your Lab Expires in 48 Hours</h1>
       </td></tr>
 
       <!-- Body -->
@@ -34,16 +45,16 @@ def build_html(lab_url, termination_time):
           Please save any work before then.
         </p>
 
-        <!-- Expiry callout -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;margin:0 0 28px;">
-          <tr><td style="padding:18px 20px;">
-            <p style="margin:0;font-size:14px;color:#7a3c00;">
-              <strong>Expiration:</strong> {termination_time}
-            </p>
+        <!-- Expiry callout — brand orange accent -->
+        <table width="100%" cellpadding="0" cellspacing="0"
+               style="background:#fff4f1;border-left:4px solid #FE572A;border-radius:0 6px 6px 0;margin:0 0 28px;">
+          <tr><td style="padding:16px 20px;">
+            <p style="margin:0 0 4px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#FE572A;">Expiration</p>
+            <p style="margin:0;font-size:16px;font-weight:700;color:#111;">{termination_time}</p>
           </td></tr>
         </table>
 
-        <!-- CTA -->
+        <!-- CTA button -->
         <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
           <tr><td style="background:#2D36EC;border-radius:6px;">
             <a href="{lab_url}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">Return to Lab Portal &rarr;</a>
@@ -51,7 +62,7 @@ def build_html(lab_url, termination_time):
         </table>
 
         <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#333;">
-          If you need additional time to complete your work, contact your Sonatype representative
+          If you need additional time, contact your Sonatype representative
           <strong>before the expiration date</strong> to request an extension.
         </p>
         <p style="margin:0;font-size:13px;color:#999;line-height:1.6;">
@@ -83,7 +94,6 @@ def handler(event, context):
     from_email            = os.environ["SES_FROM_EMAIL"]
     warning_schedule_name = os.environ["WARNING_SCHEDULE_NAME"]
 
-    # Resolve public IP for the portal link
     ec2 = boto3.client("ec2", region_name=os.environ["APP_REGION"])
     resp = ec2.describe_instances(InstanceIds=[instance_id])
     ip = resp["Reservations"][0]["Instances"][0].get("PublicIpAddress", "unavailable")
