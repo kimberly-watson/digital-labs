@@ -166,15 +166,33 @@ chmod 644 /usr/share/nginx/html/index.html
 useradd -r -s /sbin/nologin -M labclock || true
 
 # == LAB TUTOR ==
-# Note: CLAUDE_API_KEY is fetched by proxy.py at startup from SSM.
-# It is NOT passed via environment or written to any file on disk.
+# CLAUDE_API_KEY is fetched from SSM and written to /etc/lab-tutor.env (root:root 600).
+# The systemd unit reads it via EnvironmentFile — never inline in the unit file (breaks on spaces).
 mkdir -p /opt/sonatype/tutor
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/proxy.py /opt/sonatype/tutor/proxy.py
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/tutor.html /opt/sonatype/tutor/index.html
 
 PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
   http://169.254.169.254/latest/meta-data/public-ipv4)
-TUTOR_SYSTEM_PROMPT="You are a helpful lab tutor for Sonatype Digital Labs. The customer is working in a hands-on lab environment with: Nexus Repository CE at http://${PUBLIC_IP}:8081 and IQ Server at http://${PUBLIC_IP}:8070. Default credentials are admin/admin123. The lab terminates at ${TERMINATION_TIME} UTC. Help the customer understand and use these products. Be concise and practical. Redirect off-topic questions back to Sonatype lab topics."
+
+# Fetch Claude API key from SSM — never written to a world-readable location
+CLAUDE_API_KEY=$(aws ssm get-parameter \
+  --name "/digital-labs/claude-api-key" \
+  --with-decryption \
+  --region ${REGION} \
+  --query "Parameter.Value" \
+  --output text | tr -d '[:space:]')
+
+TUTOR_SYSTEM_PROMPT="You are a helpful lab tutor for Sonatype Digital Labs. You are in Learning Mode: guide users to discover answers through questions and hints rather than giving direct answers. The customer is working in a hands-on lab with Nexus Repository CE at http://${PUBLIC_IP}:8081 and IQ Server at http://${PUBLIC_IP}:8070. Default credentials are admin/admin123. The lab terminates at ${TERMINATION_TIME} UTC. Help users understand and use Nexus Repository, IQ Server Lifecycle, and IQ Server Firewall. Be concise and practical. Redirect off-topic questions back to Sonatype lab topics."
+
+# Write env file — root:root 600 so the key is never world-readable
+cat > /etc/lab-tutor.env << ENVEOF
+AWS_REGION=${REGION}
+CLAUDE_API_KEY=${CLAUDE_API_KEY}
+TUTOR_SYSTEM_PROMPT=${TUTOR_SYSTEM_PROMPT}
+ENVEOF
+chmod 600 /etc/lab-tutor.env
+chown root:root /etc/lab-tutor.env
 
 cat > /etc/systemd/system/lab-tutor.service << TUTORSVCEOF
 [Unit]
@@ -184,8 +202,7 @@ After=network.target
 ExecStart=/usr/bin/python3 /opt/sonatype/tutor/proxy.py
 Restart=always
 User=labclock
-Environment=AWS_REGION=${REGION}
-Environment=TUTOR_SYSTEM_PROMPT=${TUTOR_SYSTEM_PROMPT}
+EnvironmentFile=/etc/lab-tutor.env
 [Install]
 WantedBy=multi-user.target
 TUTORSVCEOF
