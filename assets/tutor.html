@@ -3,86 +3,102 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lab Tutor — Sonatype Digital Labs</title>
+  <title>Lab Tutor - Sonatype Digital Labs</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { background: #090B2F; color: #FBFCFA; display: flex; flex-direction: column; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+    body { background: #090B2F; color: #FBFCFA; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
 
-    /* header */
     #header {
       background: #2D36EC; padding: 0.75rem 1rem;
-      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+      -webkit-justify-content: space-between; justify-content: space-between;
+      -webkit-flex-shrink: 0; flex-shrink: 0;
     }
-    #header .logo { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 0.95rem; }
-    #header .logo span { font-size: 1.25rem; }
+    #header .logo { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 0.95rem; }
+    #header .logo .icon { font-size: 1.25rem; margin-right: 0.4rem; }
+
     #context-bar {
       background: #0d1245; border-bottom: 1px solid #2D36EC;
       padding: 0.5rem 1rem; font-size: 0.78rem; color: rgba(241,245,237,0.6);
-      display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; min-height: 2rem;
+      display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; gap: 0.5rem;
+      -webkit-flex-shrink: 0; flex-shrink: 0; min-height: 2.2rem;
     }
-    #context-dot {
-      width: 8px; height: 8px; border-radius: 50%; background: #666; flex-shrink: 0;
-      transition: background 0.3s;
-    }
+    #context-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; -webkit-flex-shrink: 0; flex-shrink: 0; -webkit-transition: background 0.4s; transition: background 0.4s; }
     #context-dot.active { background: #DAFF02; }
     #context-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* messages */
     #messages {
-      flex: 1; overflow-y: auto; padding: 1rem;
-      display: flex; flex-direction: column; gap: 0.75rem;
+      -webkit-flex: 1; flex: 1; overflow-y: auto; padding: 1rem;
+      display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; gap: 0.75rem;
+      min-height: 0;
     }
-    .msg { max-width: 88%; padding: 0.65rem 1rem; border-radius: 14px; font-size: 0.875rem; line-height: 1.55; }
-    .msg.user      { background: #FE572A; align-self: flex-end; color: #FBFCFA; border-bottom-right-radius: 4px; }
-    .msg.assistant { background: #0d1245; border: 1px solid #2D36EC; align-self: flex-start; color: #F1F5ED; border-bottom-left-radius: 4px; }
-    .msg.thinking  { color: #2D36EC; font-style: italic; background: transparent; border: none; align-self: flex-start; }
+    /* Scrollbar styling (Chrome/Edge/Safari) */
+    #messages::-webkit-scrollbar { width: 5px; }
+    #messages::-webkit-scrollbar-track { background: #0d1245; }
+    #messages::-webkit-scrollbar-thumb { background: #2D36EC; border-radius: 3px; }
 
-    /* input */
+    .msg { max-width: 88%; padding: 0.65rem 1rem; border-radius: 14px; font-size: 0.875rem; line-height: 1.55; word-wrap: break-word; }
+    .msg.user      { background: #FE572A; -webkit-align-self: flex-end; align-self: flex-end; color: #FBFCFA; border-bottom-right-radius: 4px; }
+    .msg.assistant { background: #0d1245; border: 1px solid #2D36EC; -webkit-align-self: flex-start; align-self: flex-start; color: #F1F5ED; border-bottom-left-radius: 4px; }
+    .msg.thinking  { color: #5d6bff; font-style: italic; background: transparent; -webkit-align-self: flex-start; align-self: flex-start; font-size: 0.82rem; }
+
     #input-area {
-      border-top: 1px solid #2D36EC; padding: 0.75rem; display: flex; gap: 0.5rem; flex-shrink: 0;
+      border-top: 1px solid #2D36EC; padding: 0.75rem;
+      display: -webkit-flex; display: flex; gap: 0.5rem;
+      -webkit-flex-shrink: 0; flex-shrink: 0;
     }
     #msg-input {
-      flex: 1; background: #0d1245; border: 1px solid #2D36EC; border-radius: 10px;
+      -webkit-flex: 1; flex: 1; background: #0d1245; border: 1px solid #2D36EC; border-radius: 10px;
       padding: 0.55rem 0.75rem; color: #FBFCFA; font-size: 0.875rem; resize: none; outline: none;
-      font-family: inherit;
+      font-family: inherit; line-height: 1.4;
     }
-    #msg-input::placeholder { color: rgba(241,245,237,0.4); }
+    #msg-input::-webkit-input-placeholder { color: rgba(241,245,237,0.4); }
+    #msg-input::-moz-placeholder           { color: rgba(241,245,237,0.4); }
+    #msg-input:-ms-input-placeholder       { color: rgba(241,245,237,0.4); }
+    #msg-input::placeholder                { color: rgba(241,245,237,0.4); }
     #send-btn {
       background: #FE572A; border: none; border-radius: 10px;
       padding: 0.55rem 1.1rem; color: #FBFCFA; cursor: pointer;
       font-size: 0.875rem; font-weight: 700; font-family: inherit;
-      transition: background 0.15s;
+      -webkit-transition: background 0.15s; transition: background 0.15s;
     }
     #send-btn:hover    { background: #e04820; }
     #send-btn:disabled { background: #2D36EC; opacity: 0.4; cursor: not-allowed; }
   </style>
 </head>
 <body>
+
   <div id="header">
     <div class="logo">
-      <span>🤖</span> Lab Tutor
+      <span class="icon">&#129302;</span> Lab Tutor
     </div>
     <span style="font-size:0.75rem;opacity:0.7;">Sonatype Digital Labs</span>
   </div>
 
   <div id="context-bar">
     <div id="context-dot"></div>
-    <span id="context-text">Waiting for lab activity…</span>
+    <span id="context-text">Waiting for lab activity...</span>
   </div>
 
   <div id="messages">
     <div class="msg assistant">
-      Hi! I'm your Sonatype Lab Tutor. Navigate to Nexus Repository or IQ Server in another tab and I'll know exactly where you are.<br><br>
-      Ask me anything about what you're exploring.
+      Hi! I&#39;m your Sonatype Lab Tutor. Open Nexus Repository or IQ Server in another tab
+      and I&#39;ll automatically detect where you are and tailor my help accordingly.<br><br>
+      Ask me anything about the lab.
     </div>
   </div>
 
   <div id="input-area">
-    <textarea id="msg-input" rows="2" placeholder="Ask the lab tutor…"></textarea>
+    <textarea id="msg-input" rows="2" placeholder="Ask the lab tutor..."></textarea>
     <button id="send-btn">Send</button>
   </div>
+
+
 <script>
+/* Uses var + function declarations (no let/const) for max browser compat.
+   fetch() is supported in Chrome 42+, Firefox 39+, Safari 10.1+, Edge 14+ - all current versions. */
 (function () {
   var ENDPOINT    = '/chat';
   var chatHistory = [];
@@ -95,27 +111,47 @@
   var contextDot  = document.getElementById('context-dot');
   var contextText = document.getElementById('context-text');
 
-  /* ── context polling ── */
+  /* Cross-browser storage fallback — mirrors beacon.js logic */
+  var _mem = {};
+  var store = (function () {
+    try {
+      localStorage.setItem('__sn_t', '1');
+      localStorage.removeItem('__sn_t');
+      return localStorage;
+    } catch (e) {}
+    try {
+      sessionStorage.setItem('__sn_t', '1');
+      sessionStorage.removeItem('__sn_t');
+      return sessionStorage;
+    } catch (e2) {}
+    return {
+      getItem:    function (k) { return _mem[k] !== undefined ? _mem[k] : null; },
+      setItem:    function (k, v) { _mem[k] = v; },
+      removeItem: function (k) { delete _mem[k]; }
+    };
+  })();
+
+  /* Context polling — reads what the beacon wrote */
   function pollContext() {
     try {
-      var product = localStorage.getItem('snLabProduct') || '';
-      var url     = localStorage.getItem('snLabUrl')     || '';
-      var ts      = parseInt(localStorage.getItem('snLabTs') || '0', 10);
-      var stale   = (Date.now() - ts) > 10000; // >10s = stale
+      var product = store.getItem('snLabProduct') || '';
+      var url     = store.getItem('snLabUrl')     || '';
+      var ts      = parseInt(store.getItem('snLabTs') || '0', 10);
+      var stale   = (Date.now() - ts) > 10000;
 
       if (product && !stale) {
-        contextDot.classList.add('active');
-        var page = url.replace(/^https?:\/\/[^\/]+/, '') || '/';
-        var label = product + ' — ' + page;
-        if (label !== contextText.textContent) {
+        contextDot.className = 'active';
+        var page  = url.replace(/^https?:\/\/[^\/]+/, '') || '/';
+        var label = product + ' \u2014 ' + page;
+        if (contextText.textContent !== label) {
           contextText.textContent = label;
         }
         currentProduct = product;
         currentUrl     = url;
       } else {
-        contextDot.classList.remove('active');
+        contextDot.className = '';
         contextText.textContent = product
-          ? 'Lost contact with ' + product + ' — switch to that tab'
+          ? 'Lost contact with ' + product + ' \u2014 switch to that tab'
           : 'Open Nexus Repository or IQ Server to activate context';
         currentProduct = '';
         currentUrl     = '';
@@ -126,7 +162,7 @@
   setInterval(pollContext, 2000);
   pollContext();
 
-  /* ── messaging ── */
+  /* Message helpers */
   function addMsg(text, cls) {
     var d = document.createElement('div');
     d.className = 'msg ' + cls;
@@ -136,50 +172,63 @@
     return d;
   }
 
-  async function send() {
-    var text = inputEl.value.trim();
+  /* Send message - uses fetch (supported in all target browsers) */
+  function send() {
+    var text = inputEl.value.replace(/^\s+|\s+$/g, '');
     if (!text) return;
     addMsg(text, 'user');
     chatHistory.push({ role: 'user', content: text });
     inputEl.value = '';
     sendBtn.disabled = true;
 
-    var thinking = addMsg('Thinking…', 'thinking');
-    var ctrl  = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, 30000);
+    var thinking = addMsg('Thinking...', 'thinking');
+    var timedOut = false;
+    var timer = setTimeout(function () {
+      timedOut = true;
+      if (thinking.parentNode) thinking.remove();
+      addMsg('Request timed out. Please try again.', 'thinking');
+      sendBtn.disabled = false;
+    }, 30000);
 
-    try {
-      var resp = await fetch(ENDPOINT, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          messages: chatHistory,
-          product:  currentProduct,
-          pageUrl:  currentUrl
-        }),
-        signal: ctrl.signal
-      });
+    fetch(ENDPOINT, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        messages: chatHistory,
+        product:  currentProduct,
+        pageUrl:  currentUrl
+      })
+    })
+    .then(function (resp) {
+      return resp.json();
+    })
+    .then(function (data) {
       clearTimeout(timer);
-      var data  = await resp.json();
-      thinking.remove();
-      var reply = data.reply || 'No response received.';
+      if (timedOut) return;
+      if (thinking.parentNode) thinking.remove();
+      var reply = (data && data.reply) ? data.reply : 'No response received.';
       addMsg(reply, 'assistant');
       chatHistory.push({ role: 'assistant', content: reply });
-    } catch (err) {
+    })
+    .catch(function (err) {
       clearTimeout(timer);
-      thinking.remove();
-      addMsg(err.name === 'AbortError'
-        ? 'Request timed out — please try again.'
-        : 'The tutor is unavailable right now. Please try again in a moment.', 'thinking');
-    } finally {
-      sendBtn.disabled = false;
+      if (timedOut) return;
+      if (thinking.parentNode) thinking.remove();
+      addMsg('The tutor is unavailable right now. Please try again in a moment.', 'thinking');
+    })
+    .then(function () {
+      if (!timedOut) sendBtn.disabled = false;
       inputEl.focus();
-    }
+    });
   }
 
   sendBtn.addEventListener('click', send);
   inputEl.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    var key = e.key || e.keyCode;
+    if ((key === 'Enter' || key === 13) && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
   });
 
   inputEl.focus();

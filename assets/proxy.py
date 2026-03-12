@@ -41,6 +41,16 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/chat":
             self.send_error(404)
             return
+
+        # Enforce browser-only access at the application layer
+        ua = self.headers.get("User-Agent", "")
+        if "Mozilla" not in ua:
+            self.send_response(403)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Browser access only.")
+            return
+
         try:
             length   = int(self.headers.get("Content-Length", 0))
             body     = json.loads(self.rfile.read(length))
