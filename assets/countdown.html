@@ -200,12 +200,9 @@
       }
     }
 
-    /* Raise tutor whenever the user returns to the portal tab */
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible' && tutorWin && !tutorWin.closed) {
-        try { window.open('http://' + host + '/tutor#raise', 'LabTutor'); } catch(e) {}
-      }
-    });
+    /* visibilitychange intentionally NOT used for raising — it creates an
+       infinite loop because raising the tutor steals focus from this tab,
+       which fires visibilitychange again. Tutor is raised on explicit button click only. */
 
     /* Heartbeat — lets the tutor know the portal is still open.
        Written directly to port-80 localStorage (same origin as tutor). */

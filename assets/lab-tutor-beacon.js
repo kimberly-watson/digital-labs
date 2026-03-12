@@ -39,13 +39,10 @@
     try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e) {}
   }
 
-  /* Raise on page load if tutor already open */
+  /* Raise on page load if tutor already open — one-shot only.
+     visibilitychange is intentionally NOT used: raising the tutor steals focus,
+     which fires visibilitychange on this tab, creating an infinite loop. */
   raiseTutor();
-
-  /* Raise whenever the user switches to this Nexus/IQ tab */
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') raiseTutor();
-  });
 
   /* ── storage with fallback (Safari private mode blocks localStorage) ── */
   var _mem = {};
