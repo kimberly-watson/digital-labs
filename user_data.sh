@@ -289,6 +289,7 @@ server {
         proxy_http_version 1.1;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   Accept-Encoding "";
         proxy_read_timeout 120s;
         proxy_redirect     ~^http://127\.0\.0\.1(:\d+)?/ http://$host:8082/;
         sub_filter         '</body>' '<script src="/lab-tutor-beacon.js"></script></body>';
@@ -311,6 +312,7 @@ server {
         proxy_http_version 1.1;
         proxy_set_header   Host "127.0.0.1:8070";
         proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   Accept-Encoding "";
         proxy_read_timeout 120s;
         proxy_redirect     ~^http://127\.0\.0\.1(:\d+)?(.*)$ http://$host:8072$2;
         sub_filter         '</body>' '<script src="/lab-tutor-beacon.js"></script></body>';
