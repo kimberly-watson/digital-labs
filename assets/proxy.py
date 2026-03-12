@@ -5,13 +5,17 @@ API key is read from the CLAUDE_API_KEY environment variable,
 which is injected at service start from /etc/lab-tutor.env (root:root 600).
 The key is never written to disk or logged.
 """
-import json, os, urllib.request, urllib.error
+import json, os, base64, urllib.request, urllib.error
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-MODEL         = "claude-sonnet-4-20250514"
-HTML_FILE     = "/opt/sonatype/tutor/index.html"
-API_KEY       = os.environ.get("CLAUDE_API_KEY", "")
-SYSTEM_PROMPT = os.environ.get("TUTOR_SYSTEM_PROMPT", "")
+MODEL    = "claude-sonnet-4-20250514"
+HTML_FILE = "/opt/sonatype/tutor/index.html"
+API_KEY  = os.environ.get("CLAUDE_API_KEY", "")
+
+# TUTOR_SYSTEM_PROMPT_B64 is base64-encoded so systemd EnvironmentFile
+# doesn't silently truncate it at the first newline.
+_prompt_b64 = os.environ.get("TUTOR_SYSTEM_PROMPT_B64", "")
+SYSTEM_PROMPT = base64.b64decode(_prompt_b64).decode("utf-8") if _prompt_b64 else os.environ.get("TUTOR_SYSTEM_PROMPT", "")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -19,8 +23,9 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_OPTIONS(self):
+        origin = f"http://{self.headers.get('Host', 'localhost').split(':')[0]}"
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -55,8 +60,25 @@ class Handler(BaseHTTPRequestHandler):
             length   = int(self.headers.get("Content-Length", 0))
             body     = json.loads(self.rfile.read(length))
             messages = body.get("messages", [])
-            product  = body.get("product", "").strip()
-            page_url = body.get("pageUrl", "").strip()
+
+            # Sanitize context fields — strip control characters and cap length
+            # to prevent prompt injection via client-supplied product/pageUrl.
+            def sanitize(val, max_len=200):
+                if not isinstance(val, str):
+                    return ""
+                # Remove newlines, carriage returns, and other control chars
+                cleaned = "".join(c for c in val if c >= " " and c != "\x7f")
+                return cleaned[:max_len].strip()
+
+            product  = sanitize(body.get("product", ""))
+            page_url = sanitize(body.get("pageUrl", ""))
+
+            # Allowlist: only accept known lab product names — prevents a crafted
+            # product string from injecting arbitrary text into the system prompt.
+            ALLOWED_PRODUCTS = {"Nexus Repository", "IQ Server"}
+            if product not in ALLOWED_PRODUCTS:
+                product = ""
+
             system   = SYSTEM_PROMPT
             if product:
                 context = f"\n\nContext: the user is currently viewing {product}"
@@ -84,10 +106,13 @@ class Handler(BaseHTTPRequestHandler):
                 result = json.loads(resp.read())
             reply = result["content"][0]["text"]
             out   = json.dumps({"reply": reply}).encode()
+            # Lock CORS to same host — prevents cross-origin callers from
+            # using this as an open proxy to the Claude API key.
+            origin = f"http://{self.headers.get('Host', 'localhost').split(':')[0]}"
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(out)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", origin)
             self.end_headers()
             self.wfile.write(out)
         except urllib.error.HTTPError as e:

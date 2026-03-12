@@ -77,6 +77,11 @@ curl -s \
   -F "file=@/opt/sonatype/iq-server/license.lic" \
   http://localhost:8070/api/v2/product/license
 
+# Clean up session cookies — /tmp is world-readable on most Linux configs
+rm -f /tmp/iq-cookies.txt
+# Clean up IQ session cookies — /tmp is world-readable
+rm -f /tmp/iq-cookies.txt
+
 # Wait for Nexus to be ready, then set admin password
 GENERATED=""
 until [ -n "$GENERATED" ]; do
@@ -189,11 +194,15 @@ CLAUDE_API_KEY=$(aws ssm get-parameter \
 
 TUTOR_SYSTEM_PROMPT="You are a helpful lab tutor for Sonatype Digital Labs. You are in Learning Mode: guide users to discover answers through questions and hints rather than giving direct answers. The customer is working in a hands-on lab with Nexus Repository CE at http://${PUBLIC_IP}:8081 and IQ Server at http://${PUBLIC_IP}:8070. Default credentials are admin/admin123. The lab terminates at ${TERMINATION_TIME} UTC. Help users understand and use Nexus Repository, IQ Server Lifecycle, and IQ Server Firewall. Be concise and practical. Redirect off-topic questions back to Sonatype lab topics."
 
+# Base64-encode the system prompt — systemd EnvironmentFile silently truncates
+# multi-line values at the first newline. The proxy.py reads and decodes this at startup.
+TUTOR_SYSTEM_PROMPT_B64=$(printf '%s' "$TUTOR_SYSTEM_PROMPT" | base64 -w 0)
+
 # Write env file Ã¢â‚¬â€ root:root 600 so the key is never world-readable
 cat > /etc/lab-tutor.env << ENVEOF
 AWS_REGION=${REGION}
 CLAUDE_API_KEY=${CLAUDE_API_KEY}
-TUTOR_SYSTEM_PROMPT=${TUTOR_SYSTEM_PROMPT}
+TUTOR_SYSTEM_PROMPT_B64=${TUTOR_SYSTEM_PROMPT_B64}
 ENVEOF
 chmod 600 /etc/lab-tutor.env
 chown root:root /etc/lab-tutor.env
@@ -219,6 +228,11 @@ chmod 500 /opt/sonatype/tutor/proxy.py
 systemctl enable --now lab-tutor
 
 # == NGINX REVERSE PROXY ==
+cat > /etc/nginx/conf.d/rate-limit.conf << 'RATELIMITEOF'
+# Rate limiting for /chat — 10 req/min per IP, burst 5
+limit_req_zone $binary_remote_addr zone=chat_limit:10m rate=10r/m;
+RATELIMITEOF
+
 cat > /etc/nginx/conf.d/browser-enforce.conf << 'BROWSEREOF'
 # Non-browsers get 1 (truthy), browsers get 0 (falsy) - standard nginx if() pattern
 map $http_user_agent $block_non_browser {
