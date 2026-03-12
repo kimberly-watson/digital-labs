@@ -26,13 +26,18 @@ dnf -y install docker zip python3
 systemctl enable --now docker
 
 # Pull license key from Parameter Store
+# set +x: suppress xtrace so the decoded license data never appears in cloud-init logs
 mkdir -p /opt/sonatype/iq-server
+set +x
 aws ssm get-parameter \
   --name "/digital-labs/sonatype-license" \
   --with-decryption \
   --region ${REGION} \
   --query "Parameter.Value" \
   --output text | base64 -d > /opt/sonatype/iq-server/license.lic
+# Lock down the license file — 644 default would expose it to any local user
+chmod 600 /opt/sonatype/iq-server/license.lic
+set -x
 
 # Start Nexus Repository
 # Nexus 3 in Docker logs entirely to stdout — captured by --log-driver awslogs.
@@ -108,10 +113,10 @@ done
 
 # Clean up session cookies — /tmp is world-readable on most Linux configs
 rm -f /tmp/iq-cookies.txt
-# Clean up IQ session cookies — /tmp is world-readable
-rm -f /tmp/iq-cookies.txt
 
 # Wait for Nexus to be ready, then set admin password
+# set +x: suppress xtrace — GENERATED (Nexus admin.password) must not appear in cloud-init logs
+set +x
 GENERATED=""
 until [ -n "$GENERATED" ]; do
   GENERATED=$(docker exec nexus cat /nexus-data/admin.password 2>/dev/null || true)
@@ -128,6 +133,11 @@ curl -s \
   -H "Content-Type: text/plain" \
   --data "admin123" \
   http://localhost:8081/service/rest/v1/security/users/admin/change-password
+# Delete the generated password from memory — it is no longer valid after the change above
+GENERATED="cleared"
+# Also delete admin.password file — Nexus re-reads it on startup if present
+docker exec nexus rm -f /nexus-data/admin.password || true
+set -x
 
 # Wait for IQ Server to initialize
 sleep 180
@@ -187,6 +197,10 @@ cd /tmp/fake-npm && tar -czf sonatype-lab-sample-lib-1.0.0.tgz package/
 curl -s -u "admin:admin123" \
   -X POST "http://localhost:8081/service/rest/v1/components?repository=npm-hosted-lab" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
+
+# Clean up seeding temp files — no secrets here, but good hygiene: /tmp is world-readable
+rm -rf /tmp/fake-maven /tmp/fake-npm
+cd /
 
 # == IQ SERVER SEEDING ==
 # Creates an organization, an application, and submits a CycloneDX SBOM scan
@@ -302,6 +316,8 @@ aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/tutor.html /opt/sonatype/tutor/
 PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
   http://169.254.169.254/latest/meta-data/public-ipv4)
 
+# set +x: suppress xtrace -- CLAUDE_API_KEY must NEVER appear in cloud-init logs or CloudWatch
+set +x
 # Fetch Claude API key from SSM Ã¢â‚¬â€ never written to a world-readable location
 CLAUDE_API_KEY=$(aws ssm get-parameter \
   --name "/digital-labs/claude-api-key" \
@@ -324,6 +340,9 @@ TUTOR_SYSTEM_PROMPT_B64=${TUTOR_SYSTEM_PROMPT_B64}
 ENVEOF
 chmod 600 /etc/lab-tutor.env
 chown root:root /etc/lab-tutor.env
+# Wipe API key from memory -- env file is secured, variable no longer needed
+CLAUDE_API_KEY="cleared"
+set -x
 
 cat > /etc/systemd/system/lab-tutor.service << TUTORSVCEOF
 [Unit]

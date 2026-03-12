@@ -171,7 +171,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
       {
         Effect   = "Allow"
         Action   = ["scheduler:DeleteSchedule"]
-        Resource = "*"
+        Resource = "arn:aws:scheduler:${var.aws_region}:*:schedule/default/digital-labs-*"
       },
       {
         Effect   = "Allow"
@@ -181,7 +181,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
       {
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/digital-labs-*:*"
       }
     ]
   })
