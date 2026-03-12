@@ -156,6 +156,14 @@ aws ssm put-parameter --name "/digital-labs/claude-api-key" --value $key --type 
 | `/tmp/iq-cookies.txt` left on disk | IQ license CSRF flow wrote session cookies to world-readable `/tmp` and never cleaned up | `rm -f /tmp/iq-cookies.txt` added after license upload |
 | Lambda terminator too broad | `ec2:TerminateInstances` had `Resource: "*"` Ã¢â‚¬â€ a bug could terminate non-lab instances | Scoped with `Condition: StringLike ec2:ResourceTag/lab_key "*"` |
 | CloudWatch policy too broad | `CloudWatchLogsFullAccess` granted account-wide read+write | Replaced with inline policy scoped to `arn:aws:logs:*:*:log-group:/digital-labs/*` |
+| `set -x` xtrace leaked secrets to cloud-init logs | `set -euxo pipefail` was active throughout boot script; CLAUDE_API_KEY, Nexus generated password, and license data all appeared in `/var/log/cloud-init-output.log` and CloudWatch | All three sensitive sections wrapped in `set +x` / `set -x` brackets; commit `4e3b445` |
+| License file world-readable at boot | `base64 -d > license.lic` with default umask produced 644 permissions, exposing the Sonatype license to all local users and processes | `chmod 600` applied immediately after write; commit `4e3b445` |
+| Credential variables not wiped after use | `GENERATED` (Nexus boot password) and `CLAUDE_API_KEY` persisted in process environment for entire boot script | Both variables overwritten with `"cleared"` immediately after use; commit `4e3b445` |
+| `/tmp/fake-maven` and `/tmp/fake-npm` not cleaned up | Seeding temp directories were created but never deleted; `/tmp` is world-readable on Linux | `rm -rf /tmp/fake-maven /tmp/fake-npm` added after seeding; commit `4e3b445` |
+| `*.tfvars` not excluded by `.gitignore` | Actual tfvars files (containing customer PII: email addresses) could be accidentally committed | Added `*.tfvars` rule with `!*.tfvars.example` carve-out; commit `4e3b445` |
+| Lambda CloudWatch Logs resource too broad | `logs:CreateLogGroup/Stream/PutLogEvents` scoped to `arn:aws:logs:*:*:*` (every log group in account) | Re-scoped to `arn:aws:logs:${region}:*:log-group:/aws/lambda/digital-labs-*:*`; commit `4e3b445` |
+| `scheduler:DeleteSchedule` too broad | `Resource: "*"` allowed deletion of any EventBridge schedule in account | Re-scoped to `arn:aws:scheduler:${region}:*:schedule/default/digital-labs-*`; commit `4e3b445` |
+| Old checkpoint documents in git history | `Digital_Labs_Checkpoint_March*.docx` files committed to repo may contain stale instance IDs, IP addresses, and internal infrastructure details | Old checkpoint files removed from git tracking; `.gitignore` updated to exclude `*Checkpoint*.docx`; commit `4e3b445` |
 
 
 ---
@@ -397,23 +405,23 @@ Internal container ports (NOT exposed in security group Ã¢â‚¬â€ all b
 
 | Step | Action |
 |---|---|
-| 1 | IMDSv2 token + read `lab_key` and `termination_time` from instance tags + SSM |
+| 1 | IMDSv2 token + read `lab_key` from instance tag + `TERMINATION_TIME` from SSM |
 | 2 | `dnf install docker zip python3 nginx` |
-| 3 | Fetch `CLAUDE_API_KEY` from SSM `/digital-labs/claude-api-key` (trimmed, no whitespace) |
-| 4 | Fetch `CLAUDE_API_KEY` from SSM `/digital-labs/claude-api-key`; base64-encode system prompt; write `/etc/lab-tutor.env` (root:root 600) |
-| 5 | Start Nexus CE on port 8081 |
-| 6 | Start IQ Server on ports 8070/8071 with license volume mount |
-| 7 | Wait for IQ Server Ã¢â€ â€™ CSRF token Ã¢â€ â€™ POST license via REST API |
-| 8 | Wait for Nexus Ã¢â€ â€™ read generated password Ã¢â€ â€™ set to `admin123` |
-| 9 | Seed: `lab-blob-store`, `maven-hosted-lab`, `npm-hosted-lab`, `maven-proxy-central` |
-| 10 | Seed: `sample-app` JAR + `@sonatype-lab/sample-lib` npm package |
-| 10b | **IQ Server seeding:** create "Sonatype Lab" org → "Sample Application" → submit CycloneDX SBOM with 4 known-vulnerable components → wait for scan report |
+| 3 | Fetch license from SSM `/digital-labs/sonatype-license` (SecureString); base64-decode to `/opt/sonatype/iq-server/license.lic` (`chmod 600`). `set +x` suppresses xtrace so the decoded license never appears in cloud-init logs. |
+| 4 | Start Nexus CE on port 8081 (Docker, `--log-driver awslogs`) |
+| 5 | Start IQ Server on ports 8070/8071 with license volume mount (Docker, `--log-driver awslogs`) |
+| 6 | Wait for IQ Server → CSRF token → POST license via REST API (retry loop: up to 10 attempts, 20s apart) |
+| 7 | Wait for Nexus → read generated password (`set +x` guards xtrace) → set to `admin123` → `rm -f /nexus-data/admin.password` → wipe variable from memory |
+| 8 | Seed Nexus: `lab-blob-store`, `maven-hosted-lab`, `npm-hosted-lab`, `maven-proxy-central` |
+| 9 | Seed Nexus artifacts: `sample-app` JAR + `@sonatype-lab/sample-lib` npm package → `rm -rf /tmp/fake-maven /tmp/fake-npm` |
+| 10 | **IQ Server seeding:** create "Sonatype Lab" org → "Sample Application" → submit CycloneDX SBOM with 4 known-vulnerable components → poll for scan report |
 | 11 | Deploy `countdown.html` from S3, `sed`-replace `TERMINATION_PLACEHOLDER` |
-| 12 | Deploy `proxy.py` + `tutor.html` from S3 to `/opt/sonatype/tutor/` |
-| 13 | Write `systemd lab-tutor.service` with `EnvironmentFile=/etc/lab-tutor.env` |
-| 14 | Write `nginx conf.d/digital-labs.conf` with `/chat` and `/` routes |
-| 15 | `systemctl enable --now lab-tutor nginx` |
-| 16 | Install CloudWatch agent; write config to tail IQ Server `audit.log`, `request.log`, `clm-server.log`; start agent |
+| 12 | Fetch `CLAUDE_API_KEY` from SSM (`set +x` suppresses xtrace); base64-encode system prompt; write `/etc/lab-tutor.env` (`root:root 600`); wipe variable from memory; `set -x` resumes |
+| 13 | Deploy `proxy.py` + `tutor.html` from S3 to `/opt/sonatype/tutor/` |
+| 14 | Write `systemd lab-tutor.service` with `EnvironmentFile=/etc/lab-tutor.env` |
+| 15 | Write nginx `conf.d/` (rate limit, browser enforce, digital-labs, product proxies) |
+| 16 | `systemctl enable --now lab-tutor nginx` |
+| 17 | Install CloudWatch agent; write config to tail IQ Server `audit.log`, `request.log`, `clm-server.log`; start agent |
 
 ---
 

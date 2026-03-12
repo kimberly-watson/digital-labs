@@ -12,4 +12,11 @@ lambda/proxy.py
 # Only the .example template is tracked
 *.tfvars
 !*.tfvars.example
+# Checkpoint documents contain instance IDs, IP addresses, and internal infra details
+# Generate fresh from the project at any time; do not store in version control
+*Checkpoint*.docx
+# All generated documents (PoC guide, deployment guide, customer guide PDF) —
+# these are outputs, not source. Regenerate from the project Markdown/scripts.
+*.docx
+*.pdf
 
