@@ -164,8 +164,47 @@
 
   <script>
     const host = location.hostname;
-    document.getElementById('nexus-card').onclick = function() { window.open('http://'+host+':8082','_blank'); };
-    document.getElementById('iq-card').onclick   = function() { window.open('http://'+host+':8072','_blank'); };
+
+    /* raiseTutorIfOpen — called from the portal only.
+       The portal opened the tutor, so window.open('','LabTutor') finds it here.
+       Nexus/IQ tabs can NEVER do this: Chrome 88+ enforces noopener on cross-origin
+       window.open(), making window.opener null and named-window lookup return blank. */
+    function raiseTutorIfOpen() {
+      var url = 'http://' + host + '/tutor';
+      var peek = null;
+      try { peek = window.open('', 'LabTutor'); } catch(e) { return; }
+      if (!peek || peek.closed) return;
+      try {
+        if (peek.location.href && peek.location.href !== 'about:blank') {
+          window.open(url + '#raise', 'LabTutor'); return;
+        }
+        peek.close(); // blank = tutor not open
+      } catch(e) {
+        window.open(url + '#raise', 'LabTutor'); // cross-origin = tutor is loaded
+      }
+    }
+
+    /* Card clicks: open product AND raise tutor in the same user gesture.
+       This is the only reliable raise for Nexus/IQ — it must come from the portal. */
+    document.getElementById('nexus-card').onclick = function() {
+      window.open('http://'+host+':8082','_blank');
+      raiseTutorIfOpen();
+    };
+    document.getElementById('iq-card').onclick = function() {
+      window.open('http://'+host+':8072','_blank');
+      raiseTutorIfOpen();
+    };
+
+    /* When user switches back to the portal tab, raise the tutor.
+       Safe: the tutor is a popup (separate window). Raising a popup does NOT change
+       the portal tab's document.visibilityState — no focus-steal loop is possible.
+       Debounced 300ms to coalesce any rapid visibility events. */
+    var _raiseDebounce = null;
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(_raiseDebounce);
+      _raiseDebounce = setTimeout(raiseTutorIfOpen, 300);
+    });
 
     var tutorWin = null;
     function openTutor() {
@@ -199,33 +238,6 @@
         }
       }
     }
-
-    /* visibilitychange intentionally NOT used for raising — it creates an
-       infinite loop because raising the tutor steals focus from this tab,
-       which fires visibilitychange again. Tutor is raised on explicit button click only. */
-
-    /* Raise-on-behalf: Nexus/IQ tabs can't find 'LabTutor' across browsing contexts,
-       so the beacon postMessages window.opener (this portal). The portal opened the
-       tutor, so it CAN find the named window and raise it here. */
-    window.addEventListener('message', function (evt) {
-      if (!evt.data || evt.data.type !== 'snRaiseTutor') return;
-      /* Accept only from this server's ports */
-      if (evt.origin.indexOf('http://' + host) !== 0) return;
-      var url = 'http://' + host + '/tutor';
-      /* Peek — only raise if tutor is actually open */
-      var peek = null;
-      try { peek = window.open('', 'LabTutor'); } catch(e) {}
-      if (!peek || peek.closed) return;
-      try {
-        var href = peek.location.href;
-        if (href && href !== 'about:blank') {
-          window.open(url + '#raise', 'LabTutor'); return;
-        }
-        peek.close(); /* no tutor open */
-      } catch(e) {
-        window.open(url + '#raise', 'LabTutor'); /* cross-origin = tutor loaded */
-      }
-    });
 
     /* Heartbeat — lets the tutor know the portal is still open.
        Written directly to port-80 localStorage (same origin as tutor). */

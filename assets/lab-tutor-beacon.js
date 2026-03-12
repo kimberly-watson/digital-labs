@@ -17,50 +17,6 @@
   var WIN_H     = 640;
   var _tutorWin = null;
 
-  /* ── raiseTutor ──
-     Step 1: peek for 'LabTutor' in our own browsing context (works when this tab
-     was opened from the same context that opened the tutor).
-     Step 2: if the peek returns a blank window (different browsing context — the
-     portal opened Nexus/IQ as a new tab, so they share an opener chain but NOT a
-     context), postMessage the portal (window.opener) and ask IT to do the raise.
-     The portal opened the tutor, so it CAN find 'LabTutor' directly.
-     visibilitychange is intentionally NOT used — raises steal focus, which fires
-     visibilitychange, creating an infinite loop. One-shot on page load only. */
-  function raiseTutor() {
-    var HOSTNAME_ORIGIN = 'http://' + location.hostname;
-
-    /* Step 1: same-context lookup */
-    var peek = null;
-    try { peek = window.open('', 'LabTutor'); } catch(e) {}
-    if (peek && !peek.closed) {
-      try {
-        var href = peek.location.href;
-        if (href && href !== 'about:blank') {
-          /* Tutor found in same context — raise via hash navigation */
-          try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e) {}
-          _tutorWin = peek;
-          return;
-        }
-        /* Blank = different browsing context. Close the stray blank window. */
-        peek.close();
-      } catch(e) {
-        /* Cross-origin exception = tutor IS loaded at port 80 in same context */
-        try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e2) {}
-        _tutorWin = peek;
-        return;
-      }
-    }
-
-    /* Step 2: ask the portal (opener) to raise on our behalf */
-    try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({ type: 'snRaiseTutor' }, HOSTNAME_ORIGIN);
-      }
-    } catch(e) {}
-  }
-
-  raiseTutor();
-
   /* ── storage with fallback (Safari private mode blocks localStorage) ── */
   var _mem = {};
   var store = (function () {
@@ -97,43 +53,20 @@
   setInterval(pulse, 2000);
 
   /* ── open / focus tutor popup ──
-     window.open('','LabTutor') either returns the existing named popup (same
-     browsing context) or a NEW blank popup (different tab context — Chrome can't
-     cross browsing-context boundaries). We never close-and-reopen: instead we
-     navigate the blank window in-place to avoid spawning a second instance.
-     Conversation is preserved via port-80 localStorage regardless. */
+     One call does everything within the user gesture:
+     - If 'LabTutor' exists in THIS browsing context: Chrome navigates it to
+       TUTOR_URL and brings it to the foreground (per spec, features are ignored
+       when the named window already exists).
+     - If 'LabTutor' does NOT exist here (portal opened it from a different context):
+       Chrome opens a fresh popup at TUTOR_URL with the given features. The
+       ownership heartbeat closes the portal's tutor within ~500ms.
+     Either way the user gets a tutor window in front. History is in localStorage
+     so the conversation survives a reload. */
   function openTutor() {
     var left = Math.max(0, screen.availWidth  - WIN_W - 20);
     var top  = Math.max(0, Math.round((screen.availHeight - WIN_H) / 2));
     var feat = 'width='+WIN_W+',height='+WIN_H+',left='+left+',top='+top
              + ',resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no';
-
-    var existing = null;
-    try { existing = window.open('', 'LabTutor'); } catch(e) {}
-
-    if (existing && !existing.closed) {
-      try {
-        var href = existing.location.href;
-        if (href && href !== 'about:blank') {
-          /* Same-context popup already loaded — just focus it */
-          existing.focus();
-          _tutorWin = existing;
-          return;
-        }
-        /* Blank popup (different-context): resizeTo/moveTo are blocked by browsers
-           on windows not opened by this script. Close it and open fresh below
-           with correct size features. The ownership heartbeat evicts the old
-           portal tutor within ~500ms. */
-        existing.close();
-      } catch(e) {
-        /* Cross-origin exception = tutor IS loaded at port 80 — raise it */
-        _tutorWin = existing;
-        try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e2) {}
-        return;
-      }
-    }
-
-    /* No window at all — open fresh */
     _tutorWin = window.open(TUTOR_URL, 'LabTutor', feat);
   }
 
