@@ -103,9 +103,18 @@
 (function () {
   var ENDPOINT    = '/chat';
   var HISTORY_KEY = 'snTutorHistory';
+  var OWNER_ID_KEY = 'snTutorOwnerId';
+  var OWNER_TS_KEY = 'snTutorOwnerTs';
   var chatHistory = [];
   var currentProduct = '';
   var currentUrl     = '';
+
+  /* ── Single-instance ownership ──
+     When a new tutor window opens (e.g. from a different tab's beacon), it
+     claims ownership by writing its ID to port-80 localStorage. The previous
+     tutor's heartbeat sees it lost the slot and closes itself.  The
+     conversation is preserved in snTutorHistory which both windows share. */
+  var MY_OWNER_ID = String(Date.now()) + '-' + Math.random();
 
   var messagesEl  = document.getElementById('messages');
   var inputEl     = document.getElementById('msg-input');
@@ -133,6 +142,24 @@
       removeItem: function (k) { delete _mem[k]; }
     };
   })();
+
+  /* Claim ownership immediately */
+  try {
+    store.setItem(OWNER_ID_KEY, MY_OWNER_ID);
+    store.setItem(OWNER_TS_KEY, String(Date.now()));
+  } catch(e) {}
+
+  /* Heartbeat: refresh timestamp while we own the slot; close if we lost it */
+  setInterval(function () {
+    try {
+      if (store.getItem(OWNER_ID_KEY) !== MY_OWNER_ID) {
+        /* Another tutor claimed the slot — close this stale window */
+        window.close();
+        return;
+      }
+      store.setItem(OWNER_TS_KEY, String(Date.now()));
+    } catch(e) {}
+  }, 2000);
 
   /* ── chat history persistence ──
      Saves to port-80 localStorage so a fresh tutor window always restores
@@ -182,6 +209,19 @@
       }
     } catch (e) {}
   }
+
+  /* postMessage listener — beacon sends snLabContext across the cross-origin boundary */
+  window.addEventListener('message', function (evt) {
+    try {
+      var d = evt.data;
+      if (!d || d.type !== 'snLabContext') return;
+      /* Update in-memory context and refresh the bar immediately */
+      store.setItem('snLabProduct', d.product || '');
+      store.setItem('snLabUrl',     d.url     || '');
+      store.setItem('snLabTs',      String(d.ts || Date.now()));
+      pollContext();
+    } catch(e) {}
+  });
 
   setInterval(pollContext, 2000);
   pollContext();
