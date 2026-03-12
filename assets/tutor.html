@@ -75,6 +75,7 @@
       <span class="icon">&#129302;</span> Lab Tutor
     </div>
     <span style="font-size:0.75rem;opacity:0.7;">Sonatype Digital Labs</span>
+    <button id="clear-btn" title="Clear conversation" style="background:none;border:none;color:rgba(251,252,250,0.45);cursor:pointer;font-size:0.75rem;padding:0.2rem 0.4rem;border-radius:4px;">&#128465; Clear</button>
   </div>
 
   <div id="context-bar">
@@ -101,6 +102,7 @@
    fetch() is supported in Chrome 42+, Firefox 39+, Safari 10.1+, Edge 14+ - all current versions. */
 (function () {
   var ENDPOINT    = '/chat';
+  var HISTORY_KEY = 'snTutorHistory';
   var chatHistory = [];
   var currentProduct = '';
   var currentUrl     = '';
@@ -108,6 +110,7 @@
   var messagesEl  = document.getElementById('messages');
   var inputEl     = document.getElementById('msg-input');
   var sendBtn     = document.getElementById('send-btn');
+  var clearBtn    = document.getElementById('clear-btn');
   var contextDot  = document.getElementById('context-dot');
   var contextText = document.getElementById('context-text');
 
@@ -130,6 +133,27 @@
       removeItem: function (k) { delete _mem[k]; }
     };
   })();
+
+  /* ── chat history persistence ──
+     Saves to port-80 localStorage so a fresh tutor window always restores
+     the conversation, even when opened from a different-origin tab (Nexus/IQ). */
+  function saveHistory() {
+    try { store.setItem(HISTORY_KEY, JSON.stringify(chatHistory)); } catch(e) {}
+  }
+  function restoreHistory() {
+    try {
+      var raw = store.getItem(HISTORY_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (!Array.isArray(saved) || !saved.length) return;
+      /* Remove the default greeting and re-render saved messages */
+      messagesEl.innerHTML = '';
+      for (var i = 0; i < saved.length; i++) {
+        addMsg(saved[i].content, saved[i].role === 'user' ? 'user' : 'assistant');
+      }
+      chatHistory = saved;
+    } catch(e) {}
+  }
 
   /* Context polling — reads what the beacon wrote */
   function pollContext() {
@@ -178,6 +202,7 @@
     if (!text) return;
     addMsg(text, 'user');
     chatHistory.push({ role: 'user', content: text });
+    saveHistory();
     inputEl.value = '';
     sendBtn.disabled = true;
 
@@ -209,6 +234,7 @@
       var reply = (data && data.reply) ? data.reply : 'No response received.';
       addMsg(reply, 'assistant');
       chatHistory.push({ role: 'assistant', content: reply });
+      saveHistory();
     })
     .catch(function (err) {
       clearTimeout(timer);
@@ -223,6 +249,12 @@
   }
 
   sendBtn.addEventListener('click', send);
+  clearBtn.addEventListener('click', function() {
+    chatHistory = [];
+    try { store.removeItem(HISTORY_KEY); } catch(e) {}
+    messagesEl.innerHTML = '';
+    addMsg('Hi! I\'m your Sonatype Lab Tutor. Open Nexus Repository or IQ Server in another tab and I\'ll automatically detect where you are and tailor my help accordingly.\n\nAsk me anything about the lab.', 'assistant');
+  });
   inputEl.addEventListener('keydown', function (e) {
     var key = e.key || e.keyCode;
     if ((key === 'Enter' || key === 13) && !e.shiftKey) {
@@ -232,6 +264,7 @@
   });
 
   inputEl.focus();
+  restoreHistory();
 })();
 </script>
 </body>
