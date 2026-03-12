@@ -4,6 +4,11 @@
    2. Mount a fixed "Lab Tutor" button on the right side of the page that opens
       the tutor popup. setInterval remounts it if ExtJS wipes it. */
 (function () {
+  /* Global guard — prevents double-execution if ExtJS XHR responses also contain
+     </body> and nginx injects a second copy of this script into those fragments */
+  if (window.__snBeaconInit) return;
+  window.__snBeaconInit = true;
+
   var PRODUCT   = window.__snLabProduct || '';
   if (!PRODUCT) return;
 

@@ -155,7 +155,7 @@ curl -s -u "admin:admin123" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
 
 # == COUNTDOWN CLOCK ==
-# Served directly as a static file by nginx â€” no intermediate Python process needed.
+# Served directly as a static file by nginx Ã¢â‚¬â€ no intermediate Python process needed.
 # This avoids the single-threaded TCPServer bottleneck that caused 504s under bot scan load.
 dnf -y install nginx
 
@@ -163,7 +163,7 @@ aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/countdown.html /usr/share/nginx
 sed -i "s/TERMINATION_PLACEHOLDER/${TERMINATION_TIME}/g" /usr/share/nginx/html/index.html
 chmod 644 /usr/share/nginx/html/index.html
 
-# Lab Tutor widget JS â€” served from port 80 and both product proxy ports
+# Lab Tutor widget JS Ã¢â‚¬â€ served from port 80 and both product proxy ports
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/lab-tutor-widget.js /var/www/html/lab-tutor-widget.js
 chmod 644 /var/www/html/lab-tutor-widget.js
 
@@ -171,7 +171,7 @@ useradd -r -s /sbin/nologin -M labclock || true
 
 # == LAB TUTOR ==
 # CLAUDE_API_KEY is fetched from SSM and written to /etc/lab-tutor.env (root:root 600).
-# The systemd unit reads it via EnvironmentFile â€” never inline in the unit file (breaks on spaces).
+# The systemd unit reads it via EnvironmentFile Ã¢â‚¬â€ never inline in the unit file (breaks on spaces).
 mkdir -p /opt/sonatype/tutor
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/proxy.py /opt/sonatype/tutor/proxy.py
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/tutor.html /opt/sonatype/tutor/index.html
@@ -179,7 +179,7 @@ aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/tutor.html /opt/sonatype/tutor/
 PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
   http://169.254.169.254/latest/meta-data/public-ipv4)
 
-# Fetch Claude API key from SSM â€” never written to a world-readable location
+# Fetch Claude API key from SSM Ã¢â‚¬â€ never written to a world-readable location
 CLAUDE_API_KEY=$(aws ssm get-parameter \
   --name "/digital-labs/claude-api-key" \
   --with-decryption \
@@ -189,7 +189,7 @@ CLAUDE_API_KEY=$(aws ssm get-parameter \
 
 TUTOR_SYSTEM_PROMPT="You are a helpful lab tutor for Sonatype Digital Labs. You are in Learning Mode: guide users to discover answers through questions and hints rather than giving direct answers. The customer is working in a hands-on lab with Nexus Repository CE at http://${PUBLIC_IP}:8081 and IQ Server at http://${PUBLIC_IP}:8070. Default credentials are admin/admin123. The lab terminates at ${TERMINATION_TIME} UTC. Help users understand and use Nexus Repository, IQ Server Lifecycle, and IQ Server Firewall. Be concise and practical. Redirect off-topic questions back to Sonatype lab topics."
 
-# Write env file â€” root:root 600 so the key is never world-readable
+# Write env file Ã¢â‚¬â€ root:root 600 so the key is never world-readable
 cat > /etc/lab-tutor.env << ENVEOF
 AWS_REGION=${REGION}
 CLAUDE_API_KEY=${CLAUDE_API_KEY}
@@ -290,7 +290,7 @@ server {
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_read_timeout 120s;
-        proxy_redirect     http://127.0.0.1:8081/ /;
+        proxy_redirect     ~^http://127\.0\.0\.1(:\d+)?/ http://$host:8082/;
         sub_filter         '</body>' '<script>window.__snLabProduct="Nexus Repository";</script><script src="/lab-tutor-beacon.js"></script></body>';
         sub_filter_once    on;
         sub_filter_types   text/html;
@@ -312,7 +312,7 @@ server {
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_read_timeout 120s;
-        proxy_redirect     http://127.0.0.1:8070/ /;
+        proxy_redirect     ~^http://127\.0\.0\.1(:\d+)?/ http://$host:8072/;
         sub_filter         '</body>' '<script>window.__snLabProduct="IQ Server";</script><script src="/lab-tutor-beacon.js"></script></body>';
         sub_filter_once    on;
         sub_filter_types   text/html;
