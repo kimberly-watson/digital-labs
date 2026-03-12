@@ -185,6 +185,10 @@
         tutorWin.focus();
       }
     }
+    // Bring tutor to front whenever the user switches back to the portal
+    window.addEventListener('focus', function () {
+      if (tutorWin && !tutorWin.closed) tutorWin.focus();
+    });
 
     const END_TIME = new Date("TERMINATION_PLACEHOLDER");
     const expiresEl = document.getElementById('expires-label');
