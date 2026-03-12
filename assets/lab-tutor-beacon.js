@@ -17,27 +17,35 @@
   var WIN_H     = 640;
   var _tutorWin = null;
 
-  /* ── try to grab a reference to an already-open tutor on page load ──
-     This lets the context pulse postMessage the tutor immediately, even before
-     the user clicks the Lab Tutor button. Two outcomes:
-       • Finds existing named window in same context → keep reference (no new window)
-       • Cross-origin exception → tutor IS loaded; keep reference
-       • Gets blank window (different context, no tutor open) → close it immediately
-         A blank window that's closed before painting doesn't flicker visibly. */
-  (function peekForTutor() {
+  /* ── raiseTutor ──
+     window.open(url, 'LabTutor') with NO features string on an already-open
+     named window navigates it in-place and brings it to the foreground.
+     Chrome honors this even without a user gesture. Using a hash-only change
+     (/tutor#raise) avoids a full page reload. The tutor cleans the hash via
+     hashchange. Only raises if tutor is actually open; a blank window returned
+     by window.open('','LabTutor') means tutor is not open — discard it. */
+  function raiseTutor() {
     var peek = null;
     try { peek = window.open('', 'LabTutor'); } catch(e) { return; }
     if (!peek || peek.closed) return;
     try {
       var href = peek.location.href;
-      if (href && href !== 'about:blank') {
-        _tutorWin = peek; peek.focus(); return; // same-context window loaded — bring to front
-      }
-      peek.close(); // blank = no tutor open, discard cleanly
+      if (!href || href === 'about:blank') { peek.close(); return; } // no tutor open
+      _tutorWin = peek;
     } catch(e) {
-      _tutorWin = peek; peek.focus(); // cross-origin = tutor is loaded at port 80 — bring to front
+      _tutorWin = peek; // cross-origin exception = tutor IS loaded at port 80
     }
-  })();
+    /* Navigate with hash — Chrome raises the named window to front */
+    try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e) {}
+  }
+
+  /* Raise on page load if tutor already open */
+  raiseTutor();
+
+  /* Raise whenever the user switches to this Nexus/IQ tab */
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') raiseTutor();
+  });
 
   /* ── storage with fallback (Safari private mode blocks localStorage) ── */
   var _mem = {};
@@ -105,9 +113,9 @@
            portal tutor within ~500ms. */
         existing.close();
       } catch(e) {
-        /* Cross-origin exception = tutor IS loaded (port 80 ≠ port 8082/8072) */
-        existing.focus();
+        /* Cross-origin exception = tutor IS loaded at port 80 — raise it */
         _tutorWin = existing;
+        try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e2) {}
         return;
       }
     }

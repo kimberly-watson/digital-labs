@@ -176,17 +176,17 @@
       var feat = 'width='+winW+',height='+winH+',left='+left+',top='+top
                + ',resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no';
 
-      /* Check for existing window by name before opening a new one */
       var existing = null;
       try { existing = window.open('', 'LabTutor'); } catch(e) {}
       if (existing && !existing.closed) {
         try {
           if (existing.location.href && existing.location.href !== 'about:blank') {
-            existing.focus(); tutorWin = existing; return;
+            window.open(url + '#raise', 'LabTutor'); tutorWin = existing; return;
           }
           existing.close();
         } catch(e) {
-          existing.focus(); tutorWin = existing; return;
+          /* Cross-origin = tutor loaded — raise via hash navigation */
+          window.open(url + '#raise', 'LabTutor'); tutorWin = existing; return;
         }
       }
 
@@ -199,7 +199,13 @@
         }
       }
     }
-    // Bring tutor to front whenever the user switches back to the portal
+
+    /* Raise tutor whenever the user returns to the portal tab */
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && tutorWin && !tutorWin.closed) {
+        try { window.open('http://' + host + '/tutor#raise', 'LabTutor'); } catch(e) {}
+      }
+    });
 
     const END_TIME = new Date("TERMINATION_PLACEHOLDER");
     const expiresEl = document.getElementById('expires-label');

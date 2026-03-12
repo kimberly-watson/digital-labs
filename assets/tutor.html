@@ -210,9 +210,7 @@
     } catch (e) {}
   }
 
-  /* postMessage listener — beacon sends snLabContext across the cross-origin boundary.
-     window.focus() on self is always permitted; this is how we bring the tutor to front
-     when the user switches to a new page, since browsers block focus() on other windows. */
+  /* postMessage listener — beacon sends snLabContext for context bar updates */
   window.addEventListener('message', function (evt) {
     try {
       var d = evt.data;
@@ -221,8 +219,15 @@
       store.setItem('snLabUrl',     d.url     || '');
       store.setItem('snLabTs',      String(d.ts || Date.now()));
       pollContext();
-      window.focus();
     } catch(e) {}
+  });
+
+  /* hashchange — beacon uses /tutor#raise to bring this window to front via
+     window.open(); clean the hash so the URL stays tidy */
+  window.addEventListener('hashchange', function () {
+    if (window.location.hash === '#raise') {
+      try { history.replaceState(null, '', '/tutor'); } catch(e) {}
+    }
   });
 
   setInterval(pollContext, 2000);
