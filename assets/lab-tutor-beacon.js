@@ -9,7 +9,11 @@
   if (window.__snBeaconInit) return;
   window.__snBeaconInit = true;
 
-  var PRODUCT   = window.__snLabProduct || '';
+  /* Detect product by port — avoids relying on an inline script to set
+     window.__snLabProduct, which IQ Server's Content-Security-Policy
+     (default-src 'self') blocks silently. */
+  var PRODUCT = location.port === '8082' ? 'Nexus Repository' :
+                location.port === '8072' ? 'IQ Server' : '';
   if (!PRODUCT) return;
 
   var TUTOR_URL = 'http://' + location.hostname + '/tutor';
