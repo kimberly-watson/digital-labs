@@ -8,4 +8,8 @@ tfplan
 lambda/*.zip
 lambda/tutor.html
 lambda/proxy.py
+# Actual tfvars files may contain customer PII (emails, lab names) — never commit
+# Only the .example template is tracked
+*.tfvars
+!*.tfvars.example
 
