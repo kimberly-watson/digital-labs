@@ -35,12 +35,12 @@ aws ssm get-parameter \
   --output text | base64 -d > /opt/sonatype/iq-server/license.lic
 
 # Start Nexus Repository
-mkdir -p /opt/sonatype/nexus/log
+# Nexus 3 in Docker logs entirely to stdout — captured by --log-driver awslogs.
+# No file bind-mount needed; log directory left to the Docker-managed volume.
 docker run -d \
   --name nexus \
   --restart=always \
   -p 8081:8081 \
-  -v /opt/sonatype/nexus/log:/nexus-data/log \
   --log-driver awslogs \
   --log-opt awslogs-region=${REGION} \
   --log-opt awslogs-group=/digital-labs/nexus \
@@ -348,9 +348,13 @@ rm -f /etc/nginx/conf.d/default.conf
 systemctl enable --now nginx
 
 # ---------------------------------------------------------------------------
-# CloudWatch Agent — ship Nexus + IQ Server audit and request logs
-# Docker stdout/stderr already flows via --log-driver awslogs.
-# This agent tails the structured log files that Docker does not capture.
+# CloudWatch Agent — ship IQ Server structured audit and request logs
+#
+# Nexus 3 logs entirely to stdout in Docker — already captured by the
+# --log-driver awslogs flag above. No file tailing needed for Nexus.
+#
+# IQ Server writes structured log files to its bind-mounted log directory,
+# which the agent tails from the host path below.
 # ---------------------------------------------------------------------------
 dnf install -y amazon-cloudwatch-agent
 
@@ -361,17 +365,6 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWEO
       "files": {
         "collect_list": [
           {
-            "file_path": "/opt/sonatype/nexus/log/audit/audit.log",
-            "log_group_name": "/digital-labs/nexus-audit",
-            "log_stream_name": "{instance_id}",
-            "timestamp_format": "%Y-%m-%dT%H:%M:%S"
-          },
-          {
-            "file_path": "/opt/sonatype/nexus/log/request.log",
-            "log_group_name": "/digital-labs/nexus-requests",
-            "log_stream_name": "{instance_id}"
-          },
-          {
             "file_path": "/opt/sonatype/iq-server/log/audit.log",
             "log_group_name": "/digital-labs/iq-audit",
             "log_stream_name": "{instance_id}",
@@ -380,6 +373,11 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWEO
           {
             "file_path": "/opt/sonatype/iq-server/log/request.log",
             "log_group_name": "/digital-labs/iq-requests",
+            "log_stream_name": "{instance_id}"
+          },
+          {
+            "file_path": "/opt/sonatype/iq-server/log/clm-server.log",
+            "log_group_name": "/digital-labs/iq-server-app",
             "log_stream_name": "{instance_id}"
           }
         ]
