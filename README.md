@@ -407,6 +407,7 @@ Internal container ports (NOT exposed in security group Ã¢â‚¬â€ all b
 | 8 | Wait for Nexus Ã¢â€ â€™ read generated password Ã¢â€ â€™ set to `admin123` |
 | 9 | Seed: `lab-blob-store`, `maven-hosted-lab`, `npm-hosted-lab`, `maven-proxy-central` |
 | 10 | Seed: `sample-app` JAR + `@sonatype-lab/sample-lib` npm package |
+| 10b | **IQ Server seeding:** create "Sonatype Lab" org → "Sample Application" → submit CycloneDX SBOM with 4 known-vulnerable components → wait for scan report |
 | 11 | Deploy `countdown.html` from S3, `sed`-replace `TERMINATION_PLACEHOLDER` |
 | 12 | Deploy `proxy.py` + `tutor.html` from S3 to `/opt/sonatype/tutor/` |
 | 13 | Write `systemd lab-tutor.service` with `EnvironmentFile=/etc/lab-tutor.env` |

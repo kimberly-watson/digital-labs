@@ -188,6 +188,95 @@ curl -s -u "admin:admin123" \
   -X POST "http://localhost:8081/service/rest/v1/components?repository=npm-hosted-lab" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
 
+# == IQ SERVER SEEDING ==
+# Creates an organization, an application, and submits a CycloneDX SBOM scan
+# with known-vulnerable components so students have real vulnerability data to explore.
+#
+# Components seeded (all have known CVEs in the IQ vulnerability database):
+#   log4j:log4j:1.2.17                              - multiple CVEs incl. deserialization
+#   commons-collections:commons-collections:3.2.1   - Apache Commons RCE (CVE-2015-6420)
+#   org.springframework:spring-core:4.3.0.RELEASE   - Spring CVEs
+#   org.apache.struts:struts2-core:2.3.16            - Struts RCE (CVE-2017-5638)
+#
+# NOTE: Policies are not seeded via the API - IQ's REST policy endpoints require a
+# full browser session (Basic Auth + CSRF simultaneously rejected on write endpoints).
+# Creating a security policy is an excellent first lab exercise for students.
+
+# Create organization under Root
+IQ_ORG_RESPONSE=$(curl -s -u "admin:admin123" \
+  -X POST http://localhost:8070/api/v2/organizations \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Sonatype Lab","parentOrganizationId":"ROOT_ORGANIZATION_ID"}')
+IQ_ORG_ID=$(echo "$IQ_ORG_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
+echo "IQ seed: org created id=$IQ_ORG_ID"
+
+# Create application under the org
+IQ_APP_RESPONSE=$(curl -s -u "admin:admin123" \
+  -X POST http://localhost:8070/api/v2/applications \
+  -H "Content-Type: application/json" \
+  -d "{\"publicId\":\"sample-app\",\"name\":\"Sample Application\",\"organizationId\":\"$IQ_ORG_ID\"}")
+IQ_APP_ID=$(echo "$IQ_APP_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
+echo "IQ seed: app created id=$IQ_APP_ID"
+
+# Build and submit CycloneDX SBOM with known-vulnerable components
+IQ_SCAN_UUID=$(cat /proc/sys/kernel/random/uuid)
+cat > /tmp/iq-seed-sbom.xml << SBOMEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<bom xmlns="http://cyclonedx.org/schema/bom/1.4" version="1" serialNumber="urn:uuid:${IQ_SCAN_UUID}">
+  <components>
+    <component type="library">
+      <group>log4j</group>
+      <n>log4j</n>
+      <version>1.2.17</version>
+      <purl>pkg:maven/log4j/log4j@1.2.17</purl>
+    </component>
+    <component type="library">
+      <group>commons-collections</group>
+      <n>commons-collections</n>
+      <version>3.2.1</version>
+      <purl>pkg:maven/commons-collections/commons-collections@3.2.1</purl>
+    </component>
+    <component type="library">
+      <group>org.springframework</group>
+      <n>spring-core</n>
+      <version>4.3.0.RELEASE</version>
+      <purl>pkg:maven/org.springframework/spring-core@4.3.0.RELEASE</purl>
+    </component>
+    <component type="library">
+      <group>org.apache.struts</group>
+      <n>struts2-core</n>
+      <version>2.3.16</version>
+      <purl>pkg:maven/org.apache.struts/struts2-core@2.3.16</purl>
+    </component>
+  </components>
+</bom>
+SBOMEOF
+
+IQ_SCAN_RESPONSE=$(curl -s -u "admin:admin123" \
+  -X POST "http://localhost:8070/api/v2/scan/applications/${IQ_APP_ID}/sources/ci" \
+  -H "Content-Type: application/xml" \
+  --data-binary @/tmp/iq-seed-sbom.xml)
+IQ_SCAN_STATUS_URL=$(echo "$IQ_SCAN_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('statusUrl',''))" 2>/dev/null || true)
+echo "IQ seed: scan submitted statusUrl=$IQ_SCAN_STATUS_URL"
+
+# Wait for scan to complete (up to 10 attempts, 15s apart)
+IQ_SCAN_DONE=""
+IQ_SCAN_ATTEMPTS=0
+until [ -n "$IQ_SCAN_DONE" ]; do
+  IQ_SCAN_ATTEMPTS=$((IQ_SCAN_ATTEMPTS + 1))
+  if [ "$IQ_SCAN_ATTEMPTS" -gt 10 ]; then
+    echo "IQ seed: scan did not complete in time" >&2
+    break
+  fi
+  sleep 15
+  IQ_SCAN_POLL=$(curl -s -u "admin:admin123" "http://localhost:8070/${IQ_SCAN_STATUS_URL}" 2>/dev/null || true)
+  IQ_SCAN_DONE=$(echo "$IQ_SCAN_POLL" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('reportHtmlUrl',''))" 2>/dev/null || true)
+  echo "IQ seed: scan poll attempt $IQ_SCAN_ATTEMPTS done=$IQ_SCAN_DONE"
+done
+
+rm -f /tmp/iq-seed-sbom.xml
+echo "IQ seed: complete — org=$IQ_ORG_ID app=$IQ_APP_ID"
+
 # == COUNTDOWN CLOCK ==
 # Served directly as a static file by nginx Ã¢â‚¬â€ no intermediate Python process needed.
 # This avoids the single-threaded TCPServer bottleneck that caused 504s under bot scan load.
