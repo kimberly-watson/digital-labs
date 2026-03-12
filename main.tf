@@ -70,7 +70,27 @@ resource "aws_iam_role_policy_attachment" "parameter_store_policy" {
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_policy" {
   role       = aws_iam_role.lab_ssm_role.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+  policy_arn = aws_iam_policy.cloudwatch_logs_scoped.arn
+}
+
+# Scoped CloudWatch Logs policy — EC2 instances only need write access to
+# /digital-labs/* log groups. CloudWatchLogsFullAccess grants account-wide
+# read+write which is excessive for a lab instance.
+resource "aws_iam_policy" "cloudwatch_logs_scoped" {
+  name = "digital-labs-cloudwatch-logs"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ]
+      Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/digital-labs/*"
+    }]
+  })
 }
 
 resource "aws_iam_policy" "s3_assets_read" {
@@ -121,7 +141,19 @@ resource "aws_iam_role_policy" "lambda_policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["ec2:TerminateInstances", "ec2:DescribeInstances"]
+        Action   = ["ec2:TerminateInstances"]
+        Resource = "*"
+        # Scope termination to instances tagged as Digital Labs resources only.
+        # This prevents a Lambda bug from accidentally terminating non-lab EC2 instances.
+        Condition = {
+          StringLike = {
+            "ec2:ResourceTag/lab_key" = "*"
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ec2:DescribeInstances"]
         Resource = "*"
       },
       {
