@@ -198,14 +198,6 @@
        Safe: the tutor is a popup (separate window). Raising a popup does NOT change
        the portal tab's document.visibilityState — no focus-steal loop is possible.
        Debounced 300ms to coalesce any rapid visibility events. */
-    var _raiseDebounce = null;
-    document.addEventListener('visibilitychange', function() {
-      if (document.visibilityState !== 'visible') return;
-      if (!tutorWin || tutorWin.closed) return;  // don't probe for tutor if we never opened it — avoids blank-popup focus loop
-      clearTimeout(_raiseDebounce);
-      _raiseDebounce = setTimeout(raiseTutorIfOpen, 300);
-    });
-
     var tutorWin = null;
     function openTutor() {
       var url  = 'http://' + host + '/tutor';
