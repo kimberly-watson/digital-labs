@@ -46,12 +46,14 @@ class Handler(BaseHTTPRequestHandler):
             body     = json.loads(self.rfile.read(length))
             messages = body.get("messages", [])
             product  = body.get("product", "").strip()
+            page_url = body.get("pageUrl", "").strip()
             system   = SYSTEM_PROMPT
             if product:
-                system = system + (
-                    f"\n\nContext: the user is currently working inside {product}. "
-                    "Tailor your guidance and examples to that interface."
-                )
+                context = f"\n\nContext: the user is currently viewing {product}"
+                if page_url:
+                    context += f" at {page_url}"
+                context += ". Tailor your guidance and examples to that interface and page."
+                system = system + context
             payload  = json.dumps({
                 "model":      MODEL,
                 "max_tokens": 1024,

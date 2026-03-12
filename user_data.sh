@@ -230,14 +230,20 @@ server {
         proxy_read_timeout 120s;
     }
 
-    # Lab Tutor widget JS (also served via product proxy ports below)
-    location /lab-tutor-widget.js {
-        alias /var/www/html/lab-tutor-widget.js;
+    # Lab Tutor standalone popup window
+    location = /tutor {
+        alias /var/www/html/tutor.html;
+        add_header Content-Type "text/html";
+    }
+
+    # Beacon JS - also served via product proxy ports (see product-proxies.conf)
+    location /lab-tutor-beacon.js {
+        alias /var/www/html/lab-tutor-beacon.js;
         add_header Content-Type "application/javascript";
         add_header Access-Control-Allow-Origin "*";
     }
 
-    # Portal / countdown clock — served as static file (no upstream proxy needed)
+    # Portal / countdown clock
     location / {
         root /usr/share/nginx/html;
         index index.html;
@@ -246,16 +252,16 @@ server {
 }
 NGINXEOF
 
-# Product proxy server blocks — inject Lab Tutor widget into Nexus and IQ Server pages
-# Port 8082 → Nexus (8081)   Port 8072 → IQ Server (8070)
-# Note: IQ Server uses 8070 (UI) and 8071 (internal) — 8072 is the first free port
+# Product proxy server blocks - inject beacon into Nexus and IQ Server pages
+# Beacon writes product+URL to localStorage so the tutor popup always knows context
+# Port 8082 -> Nexus (8081)   Port 8072 -> IQ Server (8070)
 cat > /etc/nginx/conf.d/product-proxies.conf << 'PROXIESEOF'
 server {
     listen 8082;
     proxy_set_header Accept-Encoding "";
 
-    location /lab-tutor-widget.js {
-        alias /var/www/html/lab-tutor-widget.js;
+    location /lab-tutor-beacon.js {
+        alias /var/www/html/lab-tutor-beacon.js;
         add_header Content-Type "application/javascript";
         add_header Access-Control-Allow-Origin "*";
     }
@@ -267,9 +273,9 @@ server {
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_read_timeout 120s;
         proxy_redirect     http://127.0.0.1:8081/ /;
-        sub_filter          '</body>' '<script>window.__snLabProduct="Nexus Repository";</script><script src="/lab-tutor-widget.js" defer></script></body>';
-        sub_filter_once     on;
-        sub_filter_types    text/html;
+        sub_filter         '</body>' '<script>window.__snLabProduct="Nexus Repository";</script><script src="/lab-tutor-beacon.js"></script></body>';
+        sub_filter_once    on;
+        sub_filter_types   text/html;
     }
 }
 
@@ -277,8 +283,8 @@ server {
     listen 8072;
     proxy_set_header Accept-Encoding "";
 
-    location /lab-tutor-widget.js {
-        alias /var/www/html/lab-tutor-widget.js;
+    location /lab-tutor-beacon.js {
+        alias /var/www/html/lab-tutor-beacon.js;
         add_header Content-Type "application/javascript";
         add_header Access-Control-Allow-Origin "*";
     }
@@ -290,9 +296,9 @@ server {
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_read_timeout 120s;
         proxy_redirect     http://127.0.0.1:8070/ /;
-        sub_filter          '</body>' '<script>window.__snLabProduct="IQ Server";</script><script src="/lab-tutor-widget.js" defer></script></body>';
-        sub_filter_once     on;
-        sub_filter_types    text/html;
+        sub_filter         '</body>' '<script>window.__snLabProduct="IQ Server";</script><script src="/lab-tutor-beacon.js"></script></body>';
+        sub_filter_once    on;
+        sub_filter_types   text/html;
     }
 }
 PROXIESEOF
