@@ -204,6 +204,29 @@
        infinite loop because raising the tutor steals focus from this tab,
        which fires visibilitychange again. Tutor is raised on explicit button click only. */
 
+    /* Raise-on-behalf: Nexus/IQ tabs can't find 'LabTutor' across browsing contexts,
+       so the beacon postMessages window.opener (this portal). The portal opened the
+       tutor, so it CAN find the named window and raise it here. */
+    window.addEventListener('message', function (evt) {
+      if (!evt.data || evt.data.type !== 'snRaiseTutor') return;
+      /* Accept only from this server's ports */
+      if (evt.origin.indexOf('http://' + host) !== 0) return;
+      var url = 'http://' + host + '/tutor';
+      /* Peek — only raise if tutor is actually open */
+      var peek = null;
+      try { peek = window.open('', 'LabTutor'); } catch(e) {}
+      if (!peek || peek.closed) return;
+      try {
+        var href = peek.location.href;
+        if (href && href !== 'about:blank') {
+          window.open(url + '#raise', 'LabTutor'); return;
+        }
+        peek.close(); /* no tutor open */
+      } catch(e) {
+        window.open(url + '#raise', 'LabTutor'); /* cross-origin = tutor loaded */
+      }
+    });
+
     /* Heartbeat — lets the tutor know the portal is still open.
        Written directly to port-80 localStorage (same origin as tutor). */
     function portalHeartbeat() {

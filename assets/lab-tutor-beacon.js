@@ -18,30 +18,47 @@
   var _tutorWin = null;
 
   /* ── raiseTutor ──
-     window.open(url, 'LabTutor') with NO features string on an already-open
-     named window navigates it in-place and brings it to the foreground.
-     Chrome honors this even without a user gesture. Using a hash-only change
-     (/tutor#raise) avoids a full page reload. The tutor cleans the hash via
-     hashchange. Only raises if tutor is actually open; a blank window returned
-     by window.open('','LabTutor') means tutor is not open — discard it. */
+     Step 1: peek for 'LabTutor' in our own browsing context (works when this tab
+     was opened from the same context that opened the tutor).
+     Step 2: if the peek returns a blank window (different browsing context — the
+     portal opened Nexus/IQ as a new tab, so they share an opener chain but NOT a
+     context), postMessage the portal (window.opener) and ask IT to do the raise.
+     The portal opened the tutor, so it CAN find 'LabTutor' directly.
+     visibilitychange is intentionally NOT used — raises steal focus, which fires
+     visibilitychange, creating an infinite loop. One-shot on page load only. */
   function raiseTutor() {
+    var HOSTNAME_ORIGIN = 'http://' + location.hostname;
+
+    /* Step 1: same-context lookup */
     var peek = null;
-    try { peek = window.open('', 'LabTutor'); } catch(e) { return; }
-    if (!peek || peek.closed) return;
-    try {
-      var href = peek.location.href;
-      if (!href || href === 'about:blank') { peek.close(); return; } // no tutor open
-      _tutorWin = peek;
-    } catch(e) {
-      _tutorWin = peek; // cross-origin exception = tutor IS loaded at port 80
+    try { peek = window.open('', 'LabTutor'); } catch(e) {}
+    if (peek && !peek.closed) {
+      try {
+        var href = peek.location.href;
+        if (href && href !== 'about:blank') {
+          /* Tutor found in same context — raise via hash navigation */
+          try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e) {}
+          _tutorWin = peek;
+          return;
+        }
+        /* Blank = different browsing context. Close the stray blank window. */
+        peek.close();
+      } catch(e) {
+        /* Cross-origin exception = tutor IS loaded at port 80 in same context */
+        try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e2) {}
+        _tutorWin = peek;
+        return;
+      }
     }
-    /* Navigate with hash — Chrome raises the named window to front */
-    try { window.open(TUTOR_URL + '#raise', 'LabTutor'); } catch(e) {}
+
+    /* Step 2: ask the portal (opener) to raise on our behalf */
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'snRaiseTutor' }, HOSTNAME_ORIGIN);
+      }
+    } catch(e) {}
   }
 
-  /* Raise on page load if tutor already open — one-shot only.
-     visibilitychange is intentionally NOT used: raising the tutor steals focus,
-     which fires visibilitychange on this tab, creating an infinite loop. */
   raiseTutor();
 
   /* ── storage with fallback (Safari private mode blocks localStorage) ── */
