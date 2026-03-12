@@ -61,9 +61,11 @@ The **Lab Tutor** is an AI learning assistant powered by Claude. It opens as a s
 
 **To open it:** click the **🤖 Use Lab Tutor** button on the portal, or the **🤖 Lab Tutor** button in the bottom-right corner of any Nexus Repository or IQ Server page.
 
+**The tutor window automatically comes to the front** whenever you click a product card on the portal, or switch back to the portal tab — so you can always see it alongside whatever you're working on without manually finding and clicking the window.
+
 If the tutor is already open, clicking the button again simply brings the existing window to the front — it will not open a second one.
 
-> **Tip:** Keep the tutor popup open as you navigate between the portal and product pages. It will stay open and retain your conversation.
+> **Tip:** Keep the portal tab open while you work. The tutor uses the portal to stay in sync with your session and to raise itself when you switch tabs.
 
 ### Learning Mode
 
@@ -90,8 +92,8 @@ The tutor knows your lab's URLs, credentials, and expiry time, so you do not nee
 ### Tips
 
 - Type in the chat box and press **Enter** or click **Send**
-- The tutor remembers the conversation as long as the popup window stays open
-- If you close the popup and reopen it, the conversation history resets
+- The tutor remembers your conversation for the duration of your session — even if you close and reopen it
+- When you close the portal tab, the tutor will reset for the next session
 - The tutor knows which product page you're currently on and can tailor its guidance accordingly
 - The tutor stays focused on Nexus Repository, IQ Server, and Sonatype topics
 
