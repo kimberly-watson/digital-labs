@@ -65,6 +65,7 @@ docker run -d \
   sonatype/nexus-iq-server:1.201.0-02
 
 # Wait for IQ Server to be ready, then upload license via REST API
+# Phase 1: Wait until IQ is responding and issues a CSRF cookie
 sleep 60
 IQ_CSRF_COOKIE=""
 until [ -n "$IQ_CSRF_COOKIE" ]; do
@@ -74,14 +75,36 @@ until [ -n "$IQ_CSRF_COOKIE" ]; do
   IQ_CSRF_COOKIE=$(grep 'CLM-CSRF-TOKEN' /tmp/iq-cookies.txt | awk '{print $NF}' || true)
   [ -z "$IQ_CSRF_COOKIE" ] && sleep 15
 done
-curl -s \
-  -c /tmp/iq-cookies.txt \
-  -b /tmp/iq-cookies.txt \
-  -H "X-CLM-CSRF-TOKEN: $IQ_CSRF_COOKIE" \
-  -u "admin:admin123" \
-  -X POST \
-  -F "file=@/opt/sonatype/iq-server/license.lic" \
-  http://localhost:8070/api/v2/product/license
+
+# Phase 2: Retry license POST until IQ accepts it (it may still be initializing
+# internally even though it is already returning CSRF cookies).
+IQ_LIC_HTTP="000"
+IQ_LIC_ATTEMPTS=0
+until [ "$IQ_LIC_HTTP" = "200" ]; do
+  IQ_LIC_ATTEMPTS=$((IQ_LIC_ATTEMPTS + 1))
+  if [ "$IQ_LIC_ATTEMPTS" -gt 10 ]; then
+    echo "ERROR: IQ Server license install failed after 10 attempts" >&2
+    break
+  fi
+  # Refresh CSRF cookie before each attempt — it may expire between retries
+  rm -f /tmp/iq-cookies.txt
+  curl -s -c /tmp/iq-cookies.txt -b /tmp/iq-cookies.txt \
+    -u "admin:admin123" \
+    http://localhost:8070/api/v2/solutions/licensed > /dev/null 2>&1 || true
+  IQ_CSRF_COOKIE=$(grep 'CLM-CSRF-TOKEN' /tmp/iq-cookies.txt | awk '{print $NF}' || true)
+  IQ_LIC_HTTP=$(curl -s \
+    -c /tmp/iq-cookies.txt \
+    -b /tmp/iq-cookies.txt \
+    -H "X-CLM-CSRF-TOKEN: $IQ_CSRF_COOKIE" \
+    -u "admin:admin123" \
+    -X POST \
+    -F "file=@/opt/sonatype/iq-server/license.lic" \
+    -o /dev/null \
+    -w "%{http_code}" \
+    http://localhost:8070/api/v2/product/license) || true
+  echo "IQ license install attempt $IQ_LIC_ATTEMPTS: HTTP $IQ_LIC_HTTP"
+  [ "$IQ_LIC_HTTP" != "200" ] && sleep 20
+done
 
 # Clean up session cookies — /tmp is world-readable on most Linux configs
 rm -f /tmp/iq-cookies.txt
