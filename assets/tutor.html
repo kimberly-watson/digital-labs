@@ -348,15 +348,18 @@
 
   inputEl.focus();
 
-  /* On load: if the portal's heartbeat is stale (or absent), wipe any stored
-     history before restoring. This handles the case where the tutor (or
-     entire browser) was closed mid-session — the polling interval never ran
-     to clear, but now a new tutor window opens and must start fresh. */
+  /* On load: if the portal was previously active but has now gone stale, wipe
+     stored history so a new session starts fresh.
+     IMPORTANT: only wipe if portalTs > 0 (portal was actually open at some point).
+     If portalTs === 0 (snPortalAlive was never written), the tutor is opening in a
+     fresh context before the first portal heartbeat — do NOT wipe, or history gets
+     cleared every time the tutor is raised from Nexus/IQ before the portal writes. */
   (function checkStaleOnLoad() {
     try {
       var portalTs = parseInt(store.getItem('snPortalAlive') || '0', 10);
-      var stale = !portalTs || (Date.now() - portalTs) > STALE_MS;
-      if (stale) store.removeItem(HISTORY_KEY);
+      if (portalTs > 0 && (Date.now() - portalTs) > STALE_MS) {
+        store.removeItem(HISTORY_KEY);
+      }
     } catch(e) {}
   })();
 
