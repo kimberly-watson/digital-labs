@@ -160,6 +160,7 @@
   </div>
 
   <button id="chat-bubble" onclick="openTutor()" title="Open Lab Tutor">&#129302; Use Lab Tutor</button>
+  <div id="popup-blocked-msg" style="display:none;position:fixed;bottom:5.5rem;right:2rem;background:#090B2F;border:1px solid #2D36EC;border-radius:10px;padding:0.75rem 1rem;font-size:0.85rem;color:#FBFCFA;z-index:9999;max-width:260px;"></div>
 
   <script>
     const host = location.hostname;
@@ -171,6 +172,15 @@
       var url = 'http://' + host + '/tutor';
       if (!tutorWin || tutorWin.closed) {
         tutorWin = window.open(url, 'LabTutor', 'width=440,height=640,resizable=yes,scrollbars=no');
+        // Safari and some browsers block popups even on direct click if not triggered
+        // synchronously from a user event — provide a direct link fallback
+        if (!tutorWin || tutorWin.closed || typeof tutorWin.closed === 'undefined') {
+          var msg = document.getElementById('popup-blocked-msg');
+          if (msg) {
+            msg.innerHTML = 'Popup blocked. <a href="' + url + '" target="_blank" style="color:#DAFF02;font-weight:700;">Open Lab Tutor in new tab</a>';
+            msg.style.display = 'block';
+          }
+        }
       } else {
         tutorWin.focus();
       }
