@@ -46,6 +46,8 @@ docker run -d \
   sonatype/nexus3:3.68.0
 
 # Start IQ Server (Lifecycle + Firewall)
+# Version pinned — sonatype/nexus-iq-server:latest pulls unpredictably and can break labs.
+# To upgrade: verify new version in staging, update the tag below, and re-test.
 docker run -d \
   --name iq-server \
   --restart=always \
@@ -56,7 +58,7 @@ docker run -d \
   --log-opt awslogs-region=${REGION} \
   --log-opt awslogs-group=/digital-labs/iq-server \
   --log-opt awslogs-create-group=true \
-  sonatype/nexus-iq-server:latest
+  sonatype/nexus-iq-server:1.201.0-02
 
 # Wait for IQ Server to be ready, then upload license via REST API
 sleep 60
@@ -192,7 +194,7 @@ CLAUDE_API_KEY=$(aws ssm get-parameter \
   --query "Parameter.Value" \
   --output text | tr -d '[:space:]')
 
-TUTOR_SYSTEM_PROMPT="You are a helpful lab tutor for Sonatype Digital Labs. You are in Learning Mode: guide users to discover answers through questions and hints rather than giving direct answers. The customer is working in a hands-on lab with Nexus Repository CE at http://${PUBLIC_IP}:8081 and IQ Server at http://${PUBLIC_IP}:8070. Default credentials are admin/admin123. The lab terminates at ${TERMINATION_TIME} UTC. Help users understand and use Nexus Repository, IQ Server Lifecycle, and IQ Server Firewall. Be concise and practical. Redirect off-topic questions back to Sonatype lab topics."
+TUTOR_SYSTEM_PROMPT="You are a helpful lab tutor for Sonatype Digital Labs. You are in Learning Mode: guide users to discover answers through questions and hints rather than giving direct answers. The customer is working in a hands-on lab with Nexus Repository CE at http://${PUBLIC_IP}:8082 and IQ Server at http://${PUBLIC_IP}:8072. If a student asks for login credentials, direct them to check the lab portal page for access details. The lab terminates at ${TERMINATION_TIME} UTC. Help users understand and use Nexus Repository, IQ Server Lifecycle, and IQ Server Firewall. Be concise and practical. Redirect off-topic questions back to Sonatype lab topics."
 
 # Base64-encode the system prompt — systemd EnvironmentFile silently truncates
 # multi-line values at the first newline. The proxy.py reads and decodes this at startup.
