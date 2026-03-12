@@ -221,20 +221,9 @@ resource "aws_security_group" "lab_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  ingress {
-    description = "Nexus Repository UI"
-    from_port   = 8081
-    to_port     = 8081
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ingress {
-    description = "IQ Server / Lifecycle / Firewall UI"
-    from_port   = 8070
-    to_port     = 8070
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # Ports 8081 (Nexus raw) and 8070 (IQ raw) are intentionally NOT exposed.
+  # All browser access goes through nginx on 8082/8072 which injects the beacon,
+  # enforces browser-only UA policy, and applies rate limiting.
   ingress {
     description = "Nexus Repository + Lab Tutor widget proxy"
     from_port   = 8082
