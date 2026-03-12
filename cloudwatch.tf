@@ -189,27 +189,16 @@ resource "aws_cloudwatch_dashboard" "digital_labs" {
       ],
 
       # -----------------------------------------------------------------------
-      # Shared: structured audit + request logs (via CloudWatch agent)
+      # Shared: IQ Server structured file logs (via CloudWatch agent)
+      # Note: Nexus 3 logs to stdout only — already captured in the container
+      # log tail widgets above. No file-based logs exist for Nexus.
       # -----------------------------------------------------------------------
       [
         {
           type   = "log"
           x      = 0
           y      = 10 + length(local.lab_list) * 13
-          width  = 12
-          height = 8
-          properties = {
-            title   = "Nexus Audit Log"
-            region  = var.aws_region
-            view    = "table"
-            query   = "SOURCE '/digital-labs/nexus-audit' | fields @timestamp, @message | sort @timestamp desc | limit 100"
-          }
-        },
-        {
-          type   = "log"
-          x      = 12
-          y      = 10 + length(local.lab_list) * 13
-          width  = 12
+          width  = 8
           height = 8
           properties = {
             title   = "IQ Server Audit Log"
@@ -220,28 +209,28 @@ resource "aws_cloudwatch_dashboard" "digital_labs" {
         },
         {
           type   = "log"
-          x      = 0
-          y      = 18 + length(local.lab_list) * 13
-          width  = 12
-          height = 8
-          properties = {
-            title   = "Nexus Request Log"
-            region  = var.aws_region
-            view    = "table"
-            query   = "SOURCE '/digital-labs/nexus-requests' | fields @timestamp, @message | sort @timestamp desc | limit 100"
-          }
-        },
-        {
-          type   = "log"
-          x      = 12
-          y      = 18 + length(local.lab_list) * 13
-          width  = 12
+          x      = 8
+          y      = 10 + length(local.lab_list) * 13
+          width  = 8
           height = 8
           properties = {
             title   = "IQ Server Request Log"
             region  = var.aws_region
             view    = "table"
             query   = "SOURCE '/digital-labs/iq-requests' | fields @timestamp, @message | sort @timestamp desc | limit 100"
+          }
+        },
+        {
+          type   = "log"
+          x      = 16
+          y      = 10 + length(local.lab_list) * 13
+          width  = 8
+          height = 8
+          properties = {
+            title   = "IQ Server App Log"
+            region  = var.aws_region
+            view    = "table"
+            query   = "SOURCE '/digital-labs/iq-server-app' | fields @timestamp, @message | sort @timestamp desc | limit 100"
           }
         },
       ],
