@@ -29,24 +29,42 @@
     };
   })();
 
-  /* ── context pulse ── */
+  /* ── context pulse ──
+     Writes to own-origin localStorage (for legacy) AND postMessages the tutor
+     popup directly. postMessage is needed because the tutor is at port 80 —
+     a different origin — so it cannot read port-8082/8072 localStorage. */
+  var TUTOR_ORIGIN = 'http://' + location.hostname;
   function pulse() {
     try {
       store.setItem('snLabProduct', PRODUCT);
       store.setItem('snLabUrl',     location.href);
       store.setItem('snLabTs',      String(Date.now()));
     } catch(e) {}
+    /* postMessage to tutor popup if we have a live reference */
+    if (_tutorWin && !_tutorWin.closed) {
+      try {
+        _tutorWin.postMessage(
+          { type: 'snLabContext', product: PRODUCT, url: location.href, ts: Date.now() },
+          TUTOR_ORIGIN
+        );
+      } catch(e) {}
+    }
   }
   pulse();
   setInterval(pulse, 2000);
 
   /* ── open / focus tutor popup ──
-     Always call window.open('', 'LabTutor') first — empty URL returns the existing
-     named window without navigating it. Only open fresh with URL+features if it's
-     genuinely gone. This prevents a second popup from being created when the user
-     switches from the portal (which opened the first one) to the repo page. */
+     window.open('','LabTutor') either returns the existing named popup (same
+     browsing context) or a NEW blank popup (different tab context — Chrome can't
+     cross browsing-context boundaries). We never close-and-reopen: instead we
+     navigate the blank window in-place to avoid spawning a second instance.
+     Conversation is preserved via port-80 localStorage regardless. */
   function openTutor() {
-    /* Try to grab existing window by name */
+    var left = Math.max(0, screen.availWidth  - WIN_W - 20);
+    var top  = Math.max(0, Math.round((screen.availHeight - WIN_H) / 2));
+    var feat = 'width='+WIN_W+',height='+WIN_H+',left='+left+',top='+top
+             + ',resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no';
+
     var existing = null;
     try { existing = window.open('', 'LabTutor'); } catch(e) {}
 
@@ -54,26 +72,27 @@
       try {
         var href = existing.location.href;
         if (href && href !== 'about:blank') {
-          /* Window is open with content — just focus it */
+          /* Same-context popup already loaded — just focus it */
           existing.focus();
           _tutorWin = existing;
           return;
         }
-        /* Blank window — was never used, close and open fresh */
-        existing.close();
+        /* Blank popup (different-context): navigate in-place, no 2nd window */
+        try { existing.resizeTo(WIN_W, WIN_H); } catch(re) {}
+        try { existing.moveTo(left, top); } catch(me) {}
+        existing.location.href = TUTOR_URL;
+        existing.focus();
+        _tutorWin = existing;
+        return;
       } catch(e) {
-        /* Cross-origin exception means the tutor IS open — focus it */
+        /* Cross-origin exception = tutor IS loaded (port 80 ≠ port 8082/8072) */
         existing.focus();
         _tutorWin = existing;
         return;
       }
     }
 
-    /* No existing window — open fresh, positioned at right edge */
-    var left = Math.max(0, screen.availWidth  - WIN_W - 20);
-    var top  = Math.max(0, Math.round((screen.availHeight - WIN_H) / 2));
-    var feat = 'width='+WIN_W+',height='+WIN_H+',left='+left+',top='+top
-             + ',resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no';
+    /* No window at all — open fresh */
     _tutorWin = window.open(TUTOR_URL, 'LabTutor', feat);
   }
 
