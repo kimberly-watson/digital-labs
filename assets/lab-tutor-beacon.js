@@ -99,13 +99,11 @@
           _tutorWin = existing;
           return;
         }
-        /* Blank popup (different-context): navigate in-place, no 2nd window */
-        try { existing.resizeTo(WIN_W, WIN_H); } catch(re) {}
-        try { existing.moveTo(left, top); } catch(me) {}
-        existing.location.href = TUTOR_URL;
-        existing.focus();
-        _tutorWin = existing;
-        return;
+        /* Blank popup (different-context): resizeTo/moveTo are blocked by browsers
+           on windows not opened by this script. Close it and open fresh below
+           with correct size features. The ownership heartbeat evicts the old
+           portal tutor within ~500ms. */
+        existing.close();
       } catch(e) {
         /* Cross-origin exception = tutor IS loaded (port 80 ≠ port 8082/8072) */
         existing.focus();
