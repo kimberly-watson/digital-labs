@@ -1,17 +1,13 @@
 /* lab-tutor-beacon.js — injected into Nexus (8082) and IQ Server (8072) by nginx sub_filter */
 (function () {
-  /* Guard 1: only run in the top-level frame — Nexus uses iframes internally and
-     nginx injects this script into those too. Each iframe has its own window object
-     so the __snBeaconInit check below wouldn't block them without this. */
+  /* Guard 1: only run in the top-level frame */
   if (window !== window.top) return;
 
-  /* Guard 2: only execute once even if ExtJS XHR responses also get beacon injected */
+  /* Guard 2: only execute once */
   if (window.__snBeaconInit) return;
   window.__snBeaconInit = true;
 
-  /* Detect product by port — avoids relying on an inline script to set
-     window.__snLabProduct, which IQ Server's Content-Security-Policy
-     (default-src 'self') blocks silently. */
+  /* Detect product by port — avoids inline scripts blocked by IQ Server's CSP */
   var PRODUCT = location.port === '8082' ? 'Nexus Repository' :
                 location.port === '8072' ? 'IQ Server' : '';
   if (!PRODUCT) return;
