@@ -212,7 +212,10 @@
     portalHeartbeat();
     setInterval(portalHeartbeat, 2000);
     window.addEventListener('beforeunload', function () {
-      try { localStorage.removeItem('snPortalAlive'); } catch(e) {}
+      try {
+        localStorage.removeItem('snPortalAlive');
+        localStorage.removeItem('snTutorHistory'); // clear history so next session starts fresh
+      } catch(e) {}
     });
 
     const END_TIME = new Date("TERMINATION_PLACEHOLDER");
