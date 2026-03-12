@@ -1,4 +1,4 @@
-# Sonatype Digital Lab — Customer Guide
+# Sonatype Digital Lab Ã¢â‚¬â€ Customer Guide
 
 Welcome to your Sonatype Digital Lab. This guide covers everything you need to get started and make the most of your lab time.
 
@@ -6,7 +6,7 @@ Welcome to your Sonatype Digital Lab. This guide covers everything you need to g
 
 ## Getting Started
 
-You will receive a welcome email from Sonatype with a single link to your **Lab Portal**. Click that link to open the portal in your browser. Everything you need is accessible from there — no VPN, no software installation, no license keys required.
+You will receive a welcome email from Sonatype with a single link to your **Lab Portal**. Click that link to open the portal in your browser. Everything you need is accessible from there Ã¢â‚¬â€ no VPN, no software installation, no license keys required.
 
 > **Allow up to 10 minutes after receiving your welcome email for all services to finish starting up.**
 
@@ -16,9 +16,9 @@ You will receive a welcome email from Sonatype with a single link to your **Lab 
 
 The portal is your home base. It shows:
 
-- **Countdown timer** — how much time remains before your lab automatically shuts down
+- **Countdown timer** Ã¢â‚¬â€ how much time remains before your lab automatically shuts down
 - **Quick-launch buttons** for Nexus Repository and IQ Server
-- **🤖 Use Lab Tutor** — an AI learning assistant you can open at any time (bottom-right corner of the portal, or bottom-right corner of any Nexus or IQ Server page)
+- **Ã°Å¸Â¤â€“ Use Lab Tutor** Ã¢â‚¬â€ an AI learning assistant you can open at any time (bottom-right corner of the portal, or bottom-right corner of any Nexus or IQ Server page)
 
 ---
 
@@ -59,11 +59,11 @@ IQ Server provides software composition analysis, policy enforcement, and firewa
 
 The **Lab Tutor** is an AI learning assistant powered by Claude. It opens as a small popup window positioned at the right edge of your screen so you can chat while keeping the product you're working in visible.
 
-**To open it:** click the **🤖 Use Lab Tutor** button on the portal, or the **🤖 Lab Tutor** button in the bottom-right corner of any Nexus Repository or IQ Server page.
+**To open it:** click the **Ã°Å¸Â¤â€“ Use Lab Tutor** button on the portal, or the **Ã°Å¸Â¤â€“ Lab Tutor** button in the bottom-right corner of any Nexus Repository or IQ Server page.
 
-**The tutor window automatically comes to the front** whenever you click a product card on the portal, or switch back to the portal tab — so you can always see it alongside whatever you're working on without manually finding and clicking the window.
+**The tutor window automatically comes to the front** whenever you click a product card on the portal, or switch back to the portal tab Ã¢â‚¬â€ so you can always see it alongside whatever you're working on without manually finding and clicking the window.
 
-If the tutor is already open, clicking the button again simply brings the existing window to the front — it will not open a second one.
+If the tutor is already open, clicking the button again simply brings the existing window to the front Ã¢â‚¬â€ it will not open a second one.
 
 > **Tip:** Keep the portal tab open while you work. The tutor uses the portal to stay in sync with your session and to raise itself when you switch tabs.
 
@@ -76,23 +76,23 @@ The Lab Tutor is designed to help you *learn*, not just look things up. Instead 
 - Give hints when you're stuck
 - Explain concepts once you've had a chance to explore
 
-This approach is intentional — working through problems with guidance leads to better retention than reading answers.
+This approach is intentional Ã¢â‚¬â€ working through problems with guidance leads to better retention than reading answers.
 
 ### What to Ask
 
 - "How do I create a new repository?"
 - "What does the firewall do and how do I configure it?"
-- "I'm trying to run a policy scan — where do I start?"
+- "I'm trying to run a policy scan Ã¢â‚¬â€ where do I start?"
 - "What's the difference between Lifecycle and Firewall?"
 - "How do I see what components are in my repository?"
-- "My lab expires in 2 days — what should I finish before then?"
+- "My lab expires in 2 days Ã¢â‚¬â€ what should I finish before then?"
 
 The tutor knows your lab's URLs and expiry time. If you need your login credentials, they are listed on the welcome email and in the FAQ below.
 
 ### Tips
 
 - Type in the chat box and press **Enter** or click **Send**
-- The tutor remembers your conversation for the duration of your session — even if you close and reopen it
+- The tutor remembers your conversation for the duration of your session Ã¢â‚¬â€ even if you close and reopen it
 - When you close the portal tab, the tutor will reset for the next session
 - The tutor knows which product page you're currently on and can tailor its guidance accordingly
 - The tutor stays focused on Nexus Repository, IQ Server, and Sonatype topics
@@ -115,19 +115,22 @@ Your lab will automatically shut down at the time shown on the portal countdown 
 ## Frequently Asked Questions
 
 **The portal loaded but Nexus or IQ Server shows an error.**
-Services can take up to 10 minutes to fully start after the lab is provisioned. Wait a few minutes and try again. You can also ask the Lab Tutor — it can tell you the current status of your services.
+Services can take up to 10 minutes to fully start after the lab is provisioned. Wait a few minutes and try again. You can also ask the Lab Tutor Ã¢â‚¬â€ it can tell you the current status of your services.
 
 **I forgot my password.**
 Default credentials are always `admin` / `admin123`. These are set automatically and do not change.
 
 **The countdown timer shows "--".**
-Refresh the page. If it continues, the timer service may still be starting up — wait 2–3 minutes and try again.
+Refresh the page. If it continues, the timer service may still be starting up Ã¢â‚¬â€ wait 2Ã¢â‚¬â€œ3 minutes and try again.
 
 **The Lab Tutor isn't answering my questions directly.**
-That's by design. The tutor uses Learning Mode, which guides you through problems rather than handing you the answer. Try following its questions and exploring the UI — the answer is usually one or two clicks away. If you're genuinely stuck, tell the tutor "I've tried X and Y, I still need help" and it will give you more direct guidance.
+That's by design. The tutor uses Learning Mode, which guides you through problems rather than handing you the answer. Try following its questions and exploring the UI Ã¢â‚¬â€ the answer is usually one or two clicks away. If you're genuinely stuck, tell the tutor "I've tried X and Y, I still need help" and it will give you more direct guidance.
 
 **The Lab Tutor says "the tutor is not available right now."**
 This means the tutor service is temporarily unavailable. Wait 30 seconds and try again. If it persists, refresh the page.
+
+**IQ Server shows a prompt to change the administrator password.**
+This is a cosmetic notice from IQ Server about its default credentials. You can safely dismiss it by clicking the X or "Remind me later" â€” it does not affect any lab functionality. Do not change the password, as the lab is pre-configured to use `admin123`.
 
 **I need more time.**
 Contact your Sonatype representative before your lab expires. Extensions must be arranged in advance and cannot be granted after the lab has terminated.
