@@ -244,10 +244,12 @@
         return;
       }
 
-      /* Portal is stale (or never wrote). Only clear if it was previously alive
-         and there is history to clear — avoids wiping on fresh tutor load. */
-      if (_portalEverSeen && store.getItem(HISTORY_KEY)) {
-        _portalEverSeen = false; // reset latch for next session
+      /* Portal is stale. If it was previously seen alive, the session has ended —
+         reset DOM and storage regardless of whether history key still exists.
+         This covers: beforeunload already cleared storage (DOM still dirty),
+         or beforeunload didn't fire (storage still present). */
+      if (_portalEverSeen) {
+        _portalEverSeen = false;
         chatHistory = [];
         store.removeItem(HISTORY_KEY);
         messagesEl.innerHTML = '';
@@ -345,6 +347,19 @@
   });
 
   inputEl.focus();
+
+  /* On load: if the portal's heartbeat is stale (or absent), wipe any stored
+     history before restoring. This handles the case where the tutor (or
+     entire browser) was closed mid-session — the polling interval never ran
+     to clear, but now a new tutor window opens and must start fresh. */
+  (function checkStaleOnLoad() {
+    try {
+      var portalTs = parseInt(store.getItem('snPortalAlive') || '0', 10);
+      var stale = !portalTs || (Date.now() - portalTs) > STALE_MS;
+      if (stale) store.removeItem(HISTORY_KEY);
+    } catch(e) {}
+  })();
+
   restoreHistory();
 })();
 </script>
