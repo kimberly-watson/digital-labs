@@ -80,16 +80,28 @@ resource "aws_iam_policy" "cloudwatch_logs_scoped" {
   name = "digital-labs-cloudwatch-logs"
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-        "logs:DescribeLogStreams"
-      ]
-      Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/digital-labs/*"
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/digital-labs/*"
+      },
+      {
+        # cloudwatch:PutMetricData and logs:DescribeLogGroups are list/global
+        # operations — AWS does not support scoping them to specific log groups.
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData",
+          "logs:DescribeLogGroups"
+        ]
+        Resource = "*"
+      }
+    ]
   })
 }
 
