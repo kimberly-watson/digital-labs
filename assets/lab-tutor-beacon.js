@@ -31,11 +31,11 @@
     try {
       var href = peek.location.href;
       if (href && href !== 'about:blank') {
-        _tutorWin = peek; return; // same-context window loaded
+        _tutorWin = peek; peek.focus(); return; // same-context window loaded — bring to front
       }
       peek.close(); // blank = no tutor open, discard cleanly
     } catch(e) {
-      _tutorWin = peek; // cross-origin exception = tutor is loaded at port 80
+      _tutorWin = peek; peek.focus(); // cross-origin = tutor is loaded at port 80 — bring to front
     }
   })();
 
