@@ -75,8 +75,9 @@ Browser (portal, Nexus, IQ Server)
       ├── "🤖 Use Lab Tutor" button on portal (port 80)
       │
       ▼
-window.open('', 'LabTutor')  →  reuses existing popup if open, opens fresh if not
-      │
+window.open(TUTOR_URL, 'LabTutor', features)
+      │  (if named window already exists in this context: Chrome navigates + raises it)
+      │  (if not: opens fresh popup — ownership heartbeat closes old portal tutor in ~500ms)
       ▼
   /tutor  (nginx :80, static HTML)
       │
@@ -84,7 +85,22 @@ window.open('', 'LabTutor')  →  reuses existing popup if open, opens fresh if 
   /chat  →  proxy.py :8090  →  Anthropic API (Claude, Learning Mode)
 ```
 
-**Popup reuse logic (beacon.js + portal):** `window.open('', 'LabTutor')` returns any existing window with that name without navigating it. If the window has content (or throws cross-origin), it is simply focused. Only when no live window is found does a fresh popup open. This prevents duplicate windows when switching between the portal and Nexus/IQ Server tabs.
+**Raise logic — Chrome 88+ noopener constraint:**
+Chrome 88+ enforces `noopener` on cross-origin `window.open()` calls, which means `window.opener` is always `null` in Nexus/IQ tabs and named-window lookup (`window.open('','LabTutor')`) always returns a blank window — the Nexus/IQ beacon can never find or raise a tutor that was opened from the portal.
+
+All raising is therefore handled exclusively by the portal:
+
+| Trigger | What Happens |
+|---|---|
+| User clicks Nexus or IQ card on portal | Card `onclick` calls `window.open(product,'_blank')` **and** `raiseTutorIfOpen()` in the same user gesture |
+| User switches back to portal tab | `visibilitychange` fires with `visible`; debounced 300ms; calls `raiseTutorIfOpen()` — safe because raising a popup does not change the portal tab's `visibilityState`, so no loop |
+| User clicks **🤖 Lab Tutor** button on Nexus/IQ | Single `window.open(TUTOR_URL,'LabTutor',feat)` — if 'LabTutor' exists in that browsing context, Chrome raises it; if not, opens fresh popup in front |
+
+**Single-instance ownership:** The tutor writes a unique owner ID to port-80 localStorage on load and refreshes a timestamp every 500ms. If a newer tutor window claims the slot, the old one closes itself — conversation history is preserved in `snTutorHistory`.
+
+**Session-end detection:** The portal writes `snPortalAlive` to port-80 localStorage every 2s. The tutor polls every 5s. Once the portal has been seen alive (`_portalEverSeen` latch), when it goes stale (>15s), the tutor resets its DOM and clears history — the session is over.
+
+**Stale-load guard:** On tutor load, `checkStaleOnLoad()` reads `snPortalAlive`. If `portalTs > 0` and stale, it wipes `snTutorHistory` before `restoreHistory()` runs. If `portalTs === 0` (portal hasn't written its first heartbeat yet), it does **not** wipe — preventing history from being cleared when the tutor is raised from Nexus/IQ before the portal's 2s interval fires.
 
 **Beacon iframe guard:** nginx injects `lab-tutor-beacon.js` into every HTML response passing through the Nexus (8082) and IQ Server (8072) proxies, including internal iframe content. The beacon exits immediately if `window !== window.top`, preventing button duplication from iframes.
 
@@ -121,9 +137,12 @@ aws ssm put-parameter --name "/digital-labs/claude-api-key" --value $key --type 
 | API key leading space | Deploy script wrote `CLAUDE_API_KEY= sk-ant...` with a space | `trim()` in user_data.sh; fixed in fix_key.sh |
 | nginx /chat 404 | `default.d/digital-labs.conf` was empty — no `/chat` route | Correct `proxy_pass` config in `conf.d/digital-labs.conf` |
 | JS silent failure on send | `var history` conflicts with browser's `window.history` object | Renamed to `chatHistory` throughout |
-| IQ Server opens portal | `proxy_redirect` replaced 127.0.0.1 host but dropped the path (`/assets/index.html`), causing an infinite 303 loop | Regex now captures full path: `~^http://127\.0\.0\.1(:\d+)?(.*)$` → `http://$host:8072$2` |
-| Double button on Nexus | nginx injects beacon into iframe HTML responses; each iframe has its own `window`, so `__snBeaconInit` on the parent didn't block iframes | Added `if (window !== window.top) return` at top of beacon IIFE |
-| Two popup windows open | Switching from portal to Nexus/IQ: `tutorWin` variable is gone; `window.open(URL,'LabTutor',features)` always creates a new window | Call `window.open('','LabTutor')` first — returns existing window by name; only open fresh if window is genuinely absent |
+| IQ Server opens portal | `proxy_redirect` replaced 127.0.0.1 host but dropped the path, causing an infinite 303 loop | Regex captures full path: `~^http://127\.0\.0\.1(:\d+)?(.*)$` → `http://$host:8072$2` |
+| Double button on Nexus | nginx injects beacon into iframe HTML; each iframe has its own `window`, so `__snBeaconInit` on the parent didn't block iframes | Added `if (window !== window.top) return` at top of beacon IIFE |
+| Two popup windows open | `tutorWin` is gone when tab changes context; `window.open(URL,'LabTutor',features)` always creates a new window | Call `window.open('','LabTutor')` first — returns existing window by name; only open fresh if window is genuinely absent |
+| Tutor not raising on Nexus/IQ navigation | Chrome 88+ enforces `noopener` on cross-origin `window.open()` — `window.opener` is null in Nexus/IQ tabs; named-window lookup returns blank | All raises go through the portal: card `onclick` + `visibilitychange` debounced 300ms; beacon button uses single `window.open(TUTOR_URL,'LabTutor',feat)` |
+| Infinite raise loop | Raising the tutor from a Nexus/IQ `visibilitychange` listener stole focus back to the tutor, which re-fired `visibilitychange`, looping infinitely | Removed `visibilitychange` from beacon entirely; portal `visibilitychange` is safe (raising a popup does not change the portal tab's `visibilityState`) |
+| History cleared too early | `checkStaleOnLoad` wiped `snTutorHistory` whenever `portalTs === 0` — which is the normal state before the portal's first 2s heartbeat fires | Only wipe when `portalTs > 0 && stale` (portal was open at some point but has since gone quiet) |
 
 
 ---
@@ -433,7 +452,7 @@ digital-labs/
 | Sonatype Personnel View | ✅ Done | `view-labs.ps1` — local HTML dashboard from `terraform output` with live countdowns |
 | SES production access | ✅ Done | Approved March 2026 — 50,000 msg/day, sandbox lifted in us-east-1 |
 | sonatype.com DKIM DNS | ✅ Done | Verified in us-east-1, confirmed March 2026 |
-| Lab Tutor AI chat | ✅ Done | Popup architecture — beacon injected into Nexus + IQ via nginx sub_filter; single popup window reused across tabs via `window.open('','LabTutor')` |
+| Lab Tutor AI chat | ✅ Done | Popup architecture — beacon injected into Nexus + IQ via nginx sub_filter; raises handled exclusively by portal (card onclick + visibilitychange); beacon button uses single `window.open(TUTOR_URL,'LabTutor',feat)`; ownership heartbeat evicts stale windows in ~500ms; session-end detection via portal localStorage heartbeat |
 | CloudWatch telemetry | 🔜 Next | Nexus + IQ Server audit logs → CloudWatch Logs via CloudWatch agent |
 | Custom domain / HTTPS | 🔜 Blocked | Requires DNS access — Route 53 + ACM cert for `https://labs.sonatype.com` |
 
