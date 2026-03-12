@@ -157,7 +157,7 @@ resource "aws_cloudwatch_dashboard" "digital_labs" {
       ]],
 
       # -----------------------------------------------------------------------
-      # Shared: container log tails (always at the bottom)
+      # Shared: container log tails (stdout/stderr via Docker awslogs driver)
       # -----------------------------------------------------------------------
       [
         {
@@ -167,7 +167,7 @@ resource "aws_cloudwatch_dashboard" "digital_labs" {
           width  = 12
           height = 8
           properties = {
-            title   = "Nexus Container Logs"
+            title   = "Nexus Container Logs (stdout)"
             region  = var.aws_region
             view    = "table"
             query   = "SOURCE '/digital-labs/nexus' | fields @timestamp, @message | sort @timestamp desc | limit 50"
@@ -180,10 +180,68 @@ resource "aws_cloudwatch_dashboard" "digital_labs" {
           width  = 12
           height = 8
           properties = {
-            title   = "IQ Server Container Logs"
+            title   = "IQ Server Container Logs (stdout)"
             region  = var.aws_region
             view    = "table"
             query   = "SOURCE '/digital-labs/iq-server' | fields @timestamp, @message | sort @timestamp desc | limit 50"
+          }
+        },
+      ],
+
+      # -----------------------------------------------------------------------
+      # Shared: structured audit + request logs (via CloudWatch agent)
+      # -----------------------------------------------------------------------
+      [
+        {
+          type   = "log"
+          x      = 0
+          y      = 10 + length(local.lab_list) * 13
+          width  = 12
+          height = 8
+          properties = {
+            title   = "Nexus Audit Log"
+            region  = var.aws_region
+            view    = "table"
+            query   = "SOURCE '/digital-labs/nexus-audit' | fields @timestamp, @message | sort @timestamp desc | limit 100"
+          }
+        },
+        {
+          type   = "log"
+          x      = 12
+          y      = 10 + length(local.lab_list) * 13
+          width  = 12
+          height = 8
+          properties = {
+            title   = "IQ Server Audit Log"
+            region  = var.aws_region
+            view    = "table"
+            query   = "SOURCE '/digital-labs/iq-audit' | fields @timestamp, @message | sort @timestamp desc | limit 100"
+          }
+        },
+        {
+          type   = "log"
+          x      = 0
+          y      = 18 + length(local.lab_list) * 13
+          width  = 12
+          height = 8
+          properties = {
+            title   = "Nexus Request Log"
+            region  = var.aws_region
+            view    = "table"
+            query   = "SOURCE '/digital-labs/nexus-requests' | fields @timestamp, @message | sort @timestamp desc | limit 100"
+          }
+        },
+        {
+          type   = "log"
+          x      = 12
+          y      = 18 + length(local.lab_list) * 13
+          width  = 12
+          height = 8
+          properties = {
+            title   = "IQ Server Request Log"
+            region  = var.aws_region
+            view    = "table"
+            query   = "SOURCE '/digital-labs/iq-requests' | fields @timestamp, @message | sort @timestamp desc | limit 100"
           }
         },
       ],
