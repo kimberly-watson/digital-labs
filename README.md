@@ -10,8 +10,8 @@ Automated AWS lab environment that provisions a full Sonatype product suite on a
 
 | Component | Details |
 |---|---|
-| **Nexus Repository CE** | Port 8081 — hosted Maven + npm repos, Maven Central proxy, seeded with sample artifacts |
-| **IQ Server (Lifecycle + Firewall)** | Port 8070 — all 7 products licensed automatically at boot |
+| **Nexus Repository CE** | Port 8082 (nginx proxy → 8081 internal) — hosted Maven + npm repos, Maven Central proxy, seeded with sample artifacts |
+| **IQ Server (Lifecycle + Firewall)** | Port 8072 (nginx proxy → 8070 internal) — all 7 products licensed automatically at boot |
 | **Lab Portal** | Port 80 — countdown timer, one-click links to Nexus and IQ Server, embedded AI tutor |
 | **Lab Tutor** | Port 8090 (internal) — Claude-powered chat proxy in Learning Mode, surfaced as a popup window launched from the portal and from Nexus/IQ Server pages |
 | **nginx** | Reverse proxy on ports 80, 8082, 8072 — routes `/chat` to tutor proxy, `/tutor` to popup HTML, injects beacon into Nexus and IQ pages |
@@ -143,6 +143,15 @@ aws ssm put-parameter --name "/digital-labs/claude-api-key" --value $key --type 
 | Tutor not raising on Nexus/IQ navigation | Chrome 88+ enforces `noopener` on cross-origin `window.open()` — `window.opener` is null in Nexus/IQ tabs; named-window lookup returns blank | All raises go through the portal: card `onclick` + `visibilitychange` debounced 300ms; beacon button uses single `window.open(TUTOR_URL,'LabTutor',feat)` |
 | Infinite raise loop | Raising the tutor from a Nexus/IQ `visibilitychange` listener stole focus back to the tutor, which re-fired `visibilitychange`, looping infinitely | Removed `visibilitychange` from beacon entirely; portal `visibilitychange` is safe (raising a popup does not change the portal tab's `visibilityState`) |
 | History cleared too early | `checkStaleOnLoad` wiped `snTutorHistory` whenever `portalTs === 0` — which is the normal state before the portal's first 2s heartbeat fires | Only wipe when `portalTs > 0 && stale` (portal was open at some point but has since gone quiet) |
+| Prompt injection via product/pageUrl | Client-supplied `product` and `pageUrl` fields were concatenated directly into the Claude system prompt | `sanitize()` strips control chars + caps length; `product` allowlisted to `{"Nexus Repository", "IQ Server"}` only |
+| API key open CORS | `proxy.py` returned `Access-Control-Allow-Origin: *`, allowing any origin to call the tutor proxy | CORS locked to same-origin host (`http://<ip>`) |
+| System prompt truncated by systemd | Multi-line `TUTOR_SYSTEM_PROMPT` in `EnvironmentFile=` silently truncated at first newline | Base64-encoded at write time in `user_data.sh`; decoded at startup in `proxy.py` |
+| Credentials in Anthropic API payload | `admin/admin123` included in system prompt, sent to Anthropic API on every chat | Credentials removed; tutor redirects credential questions to the portal |
+| Raw ports 8081/8070 open externally | Security group exposed direct container ports, bypassing nginx UA enforcement and beacon injection | Ports removed from security group; all browser access via nginx proxies 8082/8072 only |
+| IQ Server image unpinned | `sonatype/nexus-iq-server:latest` could pull a breaking version on next deploy | Pinned to `1.201.0-02` (version confirmed from running instance) |
+| `/tmp/iq-cookies.txt` left on disk | IQ license CSRF flow wrote session cookies to world-readable `/tmp` and never cleaned up | `rm -f /tmp/iq-cookies.txt` added after license upload |
+| Lambda terminator too broad | `ec2:TerminateInstances` had `Resource: "*"` — a bug could terminate non-lab instances | Scoped with `Condition: StringLike ec2:ResourceTag/lab_key "*"` |
+| CloudWatch policy too broad | `CloudWatchLogsFullAccess` granted account-wide read+write | Replaced with inline policy scoped to `arn:aws:logs:*:*:log-group:/digital-labs/*` |
 
 
 ---
@@ -362,9 +371,9 @@ Proxied product ports (nginx sub_filter injects beacon into every HTML response)
   :8082  → Nexus Repository CE (:8081)   — beacon mounts "🤖 Lab Tutor" button
   :8072  → IQ Server / Lifecycle (:8070) — beacon mounts "🤖 Lab Tutor" button
 
-Direct container ports (not browser-accessible — blocked by nginx UA enforcement):
-  :8081  Nexus Repository CE (internal)
-  :8070  IQ Server (internal)
+Internal container ports (NOT exposed in security group — all browser access must go via nginx proxies above):
+  :8081  Nexus Repository CE (internal only)
+  :8070  IQ Server (internal only)
 ```
 
 - EC2: `t3.large`, 30GB gp3, Amazon Linux 2023
@@ -387,7 +396,7 @@ Direct container ports (not browser-accessible — blocked by nginx UA enforceme
 | 1 | IMDSv2 token + read `lab_key` and `termination_time` from instance tags + SSM |
 | 2 | `dnf install docker zip python3 nginx` |
 | 3 | Fetch `CLAUDE_API_KEY` from SSM `/digital-labs/claude-api-key` (trimmed, no whitespace) |
-| 4 | Write `/etc/lab-tutor.env` (root:root 600) with API key + Learning Mode system prompt |
+| 4 | Fetch `CLAUDE_API_KEY` from SSM `/digital-labs/claude-api-key`; base64-encode system prompt; write `/etc/lab-tutor.env` (root:root 600) |
 | 5 | Start Nexus CE on port 8081 |
 | 6 | Start IQ Server on ports 8070/8071 with license volume mount |
 | 7 | Wait for IQ Server → CSRF token → POST license via REST API |
@@ -453,6 +462,7 @@ digital-labs/
 | SES production access | ✅ Done | Approved March 2026 — 50,000 msg/day, sandbox lifted in us-east-1 |
 | sonatype.com DKIM DNS | ✅ Done | Verified in us-east-1, confirmed March 2026 |
 | Lab Tutor AI chat | ✅ Done | Popup architecture — beacon injected into Nexus + IQ via nginx sub_filter; raises handled exclusively by portal (card onclick + visibilitychange); beacon button uses single `window.open(TUTOR_URL,'LabTutor',feat)`; ownership heartbeat evicts stale windows in ~500ms; session-end detection via portal localStorage heartbeat |
+| Security hardening | ✅ Done | Prompt injection allowlist + sanitize; rate limit 10 req/min on `/chat`; CORS locked to same-origin; system prompt base64-encoded; IQ Server pinned to `1.201.0-02`; credentials removed from system prompt; ports 8081/8070 closed; Lambda scoped to `lab_key` tag; CloudWatch scoped to `/digital-labs/*` |
 | CloudWatch telemetry | 🔜 Next | Nexus + IQ Server audit logs → CloudWatch Logs via CloudWatch agent |
 | Custom domain / HTTPS | 🔜 Blocked | Requires DNS access — Route 53 + ACM cert for `https://labs.sonatype.com` |
 

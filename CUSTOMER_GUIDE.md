@@ -87,7 +87,7 @@ This approach is intentional — working through problems with guidance leads to
 - "How do I see what components are in my repository?"
 - "My lab expires in 2 days — what should I finish before then?"
 
-The tutor knows your lab's URLs, credentials, and expiry time, so you do not need to look those up separately.
+The tutor knows your lab's URLs and expiry time. If you need your login credentials, they are listed on the welcome email and in the FAQ below.
 
 ### Tips
 
