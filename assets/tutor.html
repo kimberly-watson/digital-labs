@@ -210,38 +210,44 @@
     } catch (e) {}
   }
 
-  /* postMessage listener — beacon sends snLabContext for context bar updates
-     and snHeartbeat so we can track whether Nexus/IQ tabs are still open. */
-  var _lastBeaconTs = 0; // last heartbeat from any Nexus or IQ tab
+  /* postMessage listener — beacon sends snLabContext for context bar updates */
   window.addEventListener('message', function (evt) {
     try {
       var d = evt.data;
-      if (!d) return;
-      if (d.type === 'snLabContext') {
-        store.setItem('snLabProduct', d.product || '');
-        store.setItem('snLabUrl',     d.url     || '');
-        store.setItem('snLabTs',      String(d.ts || Date.now()));
-        pollContext();
-      }
-      if (d.type === 'snHeartbeat') {
-        _lastBeaconTs = Date.now();
-      }
+      if (!d || d.type !== 'snLabContext') return;
+      store.setItem('snLabProduct', d.product || '');
+      store.setItem('snLabUrl',     d.url     || '');
+      store.setItem('snLabTs',      String(d.ts || Date.now()));
+      pollContext();
     } catch(e) {}
   });
 
-  /* Session-end detection — clear history when all three pages close.
-     Portal writes snPortalAlive directly (same origin). Nexus/IQ send
-     snHeartbeat postMessages. When both are stale for 15s and there is
-     saved history, reset the tutor for the next session. */
+  /* Session-end detection — clear history when the portal tab closes.
+     The portal writes snPortalAlive to port-80 localStorage every 2s (same
+     origin as tutor, so always readable here). Once we have seen it alive at
+     least once, we know a session is in progress. When it goes stale (> 15s),
+     the portal has closed — the session is over and we reset for the next user.
+     
+     We do NOT track Nexus/IQ beacons here: they postMessage via _tutorWin which
+     is only set when the tutor was opened from the same browsing context.
+     The portal heartbeat is the single reliable signal for all tabs closing. */
+  var _portalEverSeen = false;
   var STALE_MS = 15000;
+
   setInterval(function () {
     try {
-      if (!store.getItem(HISTORY_KEY)) return; // nothing to clear
-      var portalTs  = parseInt(store.getItem('snPortalAlive') || '0', 10);
-      var portalGone  = (Date.now() - portalTs)  > STALE_MS;
-      var beaconGone  = (Date.now() - _lastBeaconTs) > STALE_MS;
-      if (portalGone && beaconGone) {
-        /* All pages closed — wipe history and reset to greeting */
+      var portalTs = parseInt(store.getItem('snPortalAlive') || '0', 10);
+      var portalAliveNow = portalTs && (Date.now() - portalTs) < STALE_MS;
+
+      if (portalAliveNow) {
+        _portalEverSeen = true; // latch: portal was open during this session
+        return;
+      }
+
+      /* Portal is stale (or never wrote). Only clear if it was previously alive
+         and there is history to clear — avoids wiping on fresh tutor load. */
+      if (_portalEverSeen && store.getItem(HISTORY_KEY)) {
+        _portalEverSeen = false; // reset latch for next session
         chatHistory = [];
         store.removeItem(HISTORY_KEY);
         messagesEl.innerHTML = '';

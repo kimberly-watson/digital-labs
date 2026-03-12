@@ -73,10 +73,6 @@
           { type: 'snLabContext', product: PRODUCT, url: location.href, ts: Date.now() },
           TUTOR_ORIGIN
         );
-        _tutorWin.postMessage(
-          { type: 'snHeartbeat', source: PRODUCT, ts: Date.now() },
-          TUTOR_ORIGIN
-        );
       } catch(e) {}
     }
   }
