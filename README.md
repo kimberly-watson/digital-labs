@@ -15,7 +15,7 @@ Automated AWS lab environment that provisions a full Sonatype product suite on a
 | **Lab Portal** | Port 80 — countdown timer, one-click links to Nexus and IQ Server, embedded AI tutor |
 | **Lab Tutor** | Port 8090 (internal) — Claude-powered chat proxy in Learning Mode, surfaced as a popup window launched from the portal and from Nexus/IQ Server pages |
 | **nginx** | Reverse proxy on ports 80, 8082, 8072 — routes `/chat` to tutor proxy, `/tutor` to popup HTML, injects beacon into Nexus and IQ pages |
-| **CloudWatch Logs** | `/digital-labs/nexus` and `/digital-labs/iq-server` — Docker audit logs shipped automatically |
+| **CloudWatch Logs** | Container stdout: `/digital-labs/nexus`, `/digital-labs/iq-server` (Docker `--log-driver awslogs`). IQ Server structured logs: `/digital-labs/iq-audit`, `/digital-labs/iq-requests`, `/digital-labs/iq-server-app` (CloudWatch agent) |
 
 **Seeded repositories:**
 - `maven-hosted-lab` — sample Maven artifact (`com.sonatype.lab:sample-app:1.0.0`)
@@ -377,7 +377,7 @@ Internal container ports (NOT exposed in security group — all browser access m
 ```
 
 - EC2: `t3.large`, 30GB gp3, Amazon Linux 2023
-- Containers: both run with `--restart=always` and ship logs to CloudWatch via `--log-driver awslogs`
+- Containers: both run with `--restart=always`; stdout shipped to CloudWatch via `--log-driver awslogs` (`/digital-labs/nexus`, `/digital-labs/iq-server`). IQ Server also writes structured log files tailed by the CloudWatch agent (`/digital-labs/iq-audit`, `/digital-labs/iq-requests`, `/digital-labs/iq-server-app`). Nexus 3 is stdout-only — no file-based log tailing needed.
 - Assets (portal HTML, proxy.py, tutor HTML) stored in S3 and downloaded at boot — keeps `user_data.sh` under the 16KB EC2 limit
 - Lab Tutor proxy runs as `labclock` (no-login system user); env file `/etc/lab-tutor.env` is root:root 600
 - License pulled from SSM at boot, base64-decoded, injected via IQ Server REST API (CSRF token flow)
@@ -408,6 +408,7 @@ Internal container ports (NOT exposed in security group — all browser access m
 | 13 | Write `systemd lab-tutor.service` with `EnvironmentFile=/etc/lab-tutor.env` |
 | 14 | Write `nginx conf.d/digital-labs.conf` with `/chat` and `/` routes |
 | 15 | `systemctl enable --now lab-tutor nginx` |
+| 16 | Install CloudWatch agent; write config to tail IQ Server `audit.log`, `request.log`, `clm-server.log`; start agent |
 
 ---
 
@@ -463,7 +464,7 @@ digital-labs/
 | sonatype.com DKIM DNS | ✅ Done | Verified in us-east-1, confirmed March 2026 |
 | Lab Tutor AI chat | ✅ Done | Popup architecture — beacon injected into Nexus + IQ via nginx sub_filter; raises handled exclusively by portal (card onclick + visibilitychange); beacon button uses single `window.open(TUTOR_URL,'LabTutor',feat)`; ownership heartbeat evicts stale windows in ~500ms; session-end detection via portal localStorage heartbeat |
 | Security hardening | ✅ Done | Prompt injection allowlist + sanitize; rate limit 10 req/min on `/chat`; CORS locked to same-origin; system prompt base64-encoded; IQ Server pinned to `1.201.0-02`; credentials removed from system prompt; ports 8081/8070 closed; Lambda scoped to `lab_key` tag; CloudWatch scoped to `/digital-labs/*` |
-| CloudWatch telemetry | 🔜 Next | Nexus + IQ Server audit logs → CloudWatch Logs via CloudWatch agent |
+| CloudWatch telemetry | ✅ Done | Nexus stdout → `/digital-labs/nexus` via Docker `--log-driver awslogs`. IQ Server structured files → `/digital-labs/iq-audit`, `/digital-labs/iq-requests`, `/digital-labs/iq-server-app` via CloudWatch agent (tails bind-mounted log dir) |
 | Custom domain / HTTPS | 🔜 Blocked | Requires DNS access — Route 53 + ACM cert for `https://labs.sonatype.com` |
 
 ---
