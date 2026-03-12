@@ -171,7 +171,7 @@
     function openTutor() {
       var url = 'http://' + host + '/tutor';
       if (!tutorWin || tutorWin.closed) {
-        tutorWin = window.open(url, 'LabTutor', 'width=440,height=640,resizable=yes,scrollbars=no');
+        tutorWin = window.open(url, 'LabTutor', 'width=440,height=640,resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no');
         // Safari and some browsers block popups even on direct click if not triggered
         // synchronously from a user event — provide a direct link fallback
         if (!tutorWin || tutorWin.closed || typeof tutorWin.closed === 'undefined') {
