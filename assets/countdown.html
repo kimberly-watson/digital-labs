@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="300">
   <title>Sonatype Digital Lab</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -202,6 +201,7 @@
     var _raiseDebounce = null;
     document.addEventListener('visibilitychange', function() {
       if (document.visibilityState !== 'visible') return;
+      if (!tutorWin || tutorWin.closed) return;  // don't probe for tutor if we never opened it — avoids blank-popup focus loop
       clearTimeout(_raiseDebounce);
       _raiseDebounce = setTimeout(raiseTutorIfOpen, 300);
     });
