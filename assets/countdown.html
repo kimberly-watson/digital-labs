@@ -207,6 +207,17 @@
       }
     });
 
+    /* Heartbeat — lets the tutor know the portal is still open.
+       Written directly to port-80 localStorage (same origin as tutor). */
+    function portalHeartbeat() {
+      try { localStorage.setItem('snPortalAlive', String(Date.now())); } catch(e) {}
+    }
+    portalHeartbeat();
+    setInterval(portalHeartbeat, 2000);
+    window.addEventListener('beforeunload', function () {
+      try { localStorage.removeItem('snPortalAlive'); } catch(e) {}
+    });
+
     const END_TIME = new Date("TERMINATION_PLACEHOLDER");
     const expiresEl = document.getElementById('expires-label');
     if (!isNaN(END_TIME.getTime())) {

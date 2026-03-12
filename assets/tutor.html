@@ -210,17 +210,45 @@
     } catch (e) {}
   }
 
-  /* postMessage listener — beacon sends snLabContext for context bar updates */
+  /* postMessage listener — beacon sends snLabContext for context bar updates
+     and snHeartbeat so we can track whether Nexus/IQ tabs are still open. */
+  var _lastBeaconTs = 0; // last heartbeat from any Nexus or IQ tab
   window.addEventListener('message', function (evt) {
     try {
       var d = evt.data;
-      if (!d || d.type !== 'snLabContext') return;
-      store.setItem('snLabProduct', d.product || '');
-      store.setItem('snLabUrl',     d.url     || '');
-      store.setItem('snLabTs',      String(d.ts || Date.now()));
-      pollContext();
+      if (!d) return;
+      if (d.type === 'snLabContext') {
+        store.setItem('snLabProduct', d.product || '');
+        store.setItem('snLabUrl',     d.url     || '');
+        store.setItem('snLabTs',      String(d.ts || Date.now()));
+        pollContext();
+      }
+      if (d.type === 'snHeartbeat') {
+        _lastBeaconTs = Date.now();
+      }
     } catch(e) {}
   });
+
+  /* Session-end detection — clear history when all three pages close.
+     Portal writes snPortalAlive directly (same origin). Nexus/IQ send
+     snHeartbeat postMessages. When both are stale for 15s and there is
+     saved history, reset the tutor for the next session. */
+  var STALE_MS = 15000;
+  setInterval(function () {
+    try {
+      if (!store.getItem(HISTORY_KEY)) return; // nothing to clear
+      var portalTs  = parseInt(store.getItem('snPortalAlive') || '0', 10);
+      var portalGone  = (Date.now() - portalTs)  > STALE_MS;
+      var beaconGone  = (Date.now() - _lastBeaconTs) > STALE_MS;
+      if (portalGone && beaconGone) {
+        /* All pages closed — wipe history and reset to greeting */
+        chatHistory = [];
+        store.removeItem(HISTORY_KEY);
+        messagesEl.innerHTML = '';
+        addMsg('Hi! I\'m your Sonatype Lab Tutor. Open Nexus Repository or IQ Server in another tab and I\'ll automatically detect where you are and tailor my help accordingly.\n\nAsk me anything about the lab.', 'assistant');
+      }
+    } catch(e) {}
+  }, 5000);
 
   /* hashchange — beacon uses /tutor#raise to bring this window to front via
      window.open(); clean the hash so the URL stays tidy */
