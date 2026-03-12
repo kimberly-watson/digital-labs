@@ -41,4 +41,35 @@
 
   pulse();
   setInterval(pulse, 2000);
+
+  /* Bring the tutor popup to the front whenever the user focuses this tab.
+     window.open('', 'LabTutor') returns the existing popup by name without
+     navigating it. If it's cross-origin (tutor is port 80, we're on 8082/8072),
+     location.href throws — that means the window IS open, so we focus it.
+     If location.href returns 'about:blank', no tutor is open yet — close the
+     blank window we accidentally created and do nothing. */
+  var _tutorRef = null;
+  function bringTutorToFront() {
+    if (_tutorRef && !_tutorRef.closed) {
+      _tutorRef.focus();
+      return;
+    }
+    var w = window.open('', 'LabTutor');
+    if (!w) return;
+    try {
+      var href = w.location.href;
+      if (!href || href === 'about:blank') {
+        w.close(); // No tutor open yet — discard blank window
+      } else {
+        _tutorRef = w;
+        _tutorRef.focus();
+      }
+    } catch (e) {
+      // Cross-origin means the tutor IS open — safe to focus
+      _tutorRef = w;
+      _tutorRef.focus();
+    }
+  }
+
+  window.addEventListener('focus', bringTutorToFront);
 })();
