@@ -17,6 +17,28 @@
   var WIN_H     = 640;
   var _tutorWin = null;
 
+  /* ── try to grab a reference to an already-open tutor on page load ──
+     This lets the context pulse postMessage the tutor immediately, even before
+     the user clicks the Lab Tutor button. Two outcomes:
+       • Finds existing named window in same context → keep reference (no new window)
+       • Cross-origin exception → tutor IS loaded; keep reference
+       • Gets blank window (different context, no tutor open) → close it immediately
+         A blank window that's closed before painting doesn't flicker visibly. */
+  (function peekForTutor() {
+    var peek = null;
+    try { peek = window.open('', 'LabTutor'); } catch(e) { return; }
+    if (!peek || peek.closed) return;
+    try {
+      var href = peek.location.href;
+      if (href && href !== 'about:blank') {
+        _tutorWin = peek; return; // same-context window loaded
+      }
+      peek.close(); // blank = no tutor open, discard cleanly
+    } catch(e) {
+      _tutorWin = peek; // cross-origin exception = tutor is loaded at port 80
+    }
+  })();
+
   /* ── storage with fallback (Safari private mode blocks localStorage) ── */
   var _mem = {};
   var store = (function () {

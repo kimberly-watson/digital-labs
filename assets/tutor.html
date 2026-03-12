@@ -149,17 +149,17 @@
     store.setItem(OWNER_TS_KEY, String(Date.now()));
   } catch(e) {}
 
-  /* Heartbeat: refresh timestamp while we own the slot; close if we lost it */
+  /* Heartbeat: refresh timestamp while we own the slot; close if we lost it.
+     500ms interval = old window closes within ~0.5-1s of a new one opening. */
   setInterval(function () {
     try {
       if (store.getItem(OWNER_ID_KEY) !== MY_OWNER_ID) {
-        /* Another tutor claimed the slot — close this stale window */
         window.close();
         return;
       }
       store.setItem(OWNER_TS_KEY, String(Date.now()));
     } catch(e) {}
-  }, 2000);
+  }, 500);
 
   /* ── chat history persistence ──
      Saves to port-80 localStorage so a fresh tutor window always restores
