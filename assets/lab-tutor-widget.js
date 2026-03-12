@@ -1,6 +1,10 @@
 (function () {
-  var PRODUCT  = window.__snLabProduct || 'the lab environment';
-  var ENDPOINT = 'http://' + location.hostname + '/chat';
+  /* Guard: only set up once even if script somehow executes twice */
+  if (window.__snWidgetInit) return;
+  window.__snWidgetInit = true;
+
+  var PRODUCT     = window.__snLabProduct || 'the lab environment';
+  var ENDPOINT    = 'http://' + location.hostname + '/chat';
   var chatHistory = window.__snChatHistory = window.__snChatHistory || [];
   var isOpen      = window.__snChatOpen   = window.__snChatOpen   || false;
 
@@ -44,10 +48,10 @@
     document.head.appendChild(css);
   }
 
-  /* ── mount: appends to <html> so ExtJS body-wipes cannot remove it ── */
+  /* ── mount: always appends to document.body ── */
   function mount() {
+    if (!document.body) return;
     if (document.getElementById('sn-bubble')) return;
-    if (!document.documentElement) return;
     injectStyles();
 
     var bubble = document.createElement('button');
@@ -70,15 +74,13 @@
       '</div>'
     ].join('');
 
-    document.documentElement.appendChild(bubble);
-    document.documentElement.appendChild(win);
+    document.body.appendChild(bubble);
+    document.body.appendChild(win);
 
     if (chatHistory.length === 0) {
-      addMsg('Hi! I\'m your Lab Tutor. I can see you\'re working in ' + PRODUCT + '. Ask me anything about what you\'re exploring.', 'bot');
+      addMsg('Hi! I\'m your Lab Tutor. I can see you\'re in ' + PRODUCT + '. Ask me anything.', 'bot');
     } else {
-      chatHistory.forEach(function (m) {
-        addMsg(m.content, m.role === 'user' ? 'user' : 'bot');
-      });
+      chatHistory.forEach(function (m) { addMsg(m.content, m.role === 'user' ? 'user' : 'bot'); });
     }
 
     bubble.addEventListener('click', toggleChat);
@@ -139,32 +141,26 @@
       if (thinking && thinking.parentNode) thinking.remove();
       addMsg(err.name === 'AbortError'
         ? 'Request timed out \u2014 please try again.'
-        : 'The tutor is not available right now. Please try again in a moment.', 'think');
+        : 'The tutor is not available right now. Please try again.', 'think');
     } finally {
       var b = document.getElementById('sn-send');
       if (b) b.disabled = false;
     }
   }
 
-  /* ── boot ──
-     Race condition fix: a defer script runs AFTER HTML parsing. By then,
-     window.load may have ALREADY fired on a fast connection — so the listener
-     would never trigger. We check readyState first and fall through to the
-     listener only if the load event hasn't fired yet.
-     Multiple setTimeout calls ensure we mount after ExtJS settles the DOM
-     regardless of how long its initialisation takes.
-  ── */
-  function boot() {
-    setTimeout(mount, 500);   // first attempt — catches fast-loading pages
-    setTimeout(mount, 1500);  // second attempt — after ExtJS bootstrap
-    setTimeout(mount, 3500);  // safety net — catches slow initialisations
-  }
+  /*
+   * setInterval is the only reliable approach for ExtJS/Sencha apps.
+   * ExtJS replaces document.body contents after load. We poll every 500ms
+   * and re-mount whenever the button is missing. The mount() guard prevents
+   * double-mount. Conversation history survives in window.__snChatHistory.
+   */
+  setInterval(function () {
+    if (document.body && !document.getElementById('sn-bubble')) {
+      mount();
+    }
+  }, 500);
 
-  if (document.readyState === 'complete') {
-    // load already fired — run immediately
-    boot();
-  } else {
-    window.addEventListener('load', boot);
-  }
+  /* Also try immediately in case body is already ready */
+  mount();
 
 })();
