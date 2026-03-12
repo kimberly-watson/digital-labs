@@ -60,9 +60,9 @@
   })();
 
   /* ── context pulse ──
-     Writes to own-origin localStorage (for legacy) AND postMessages the tutor
-     popup directly. postMessage is needed because the tutor is at port 80 —
-     a different origin — so it cannot read port-8082/8072 localStorage. */
+     Writes to own-origin localStorage AND postMessages the tutor directly.
+     postMessage is needed because tutor is port 80 — different origin.
+     Also sends a snHeartbeat so the tutor knows this page is still open. */
   var TUTOR_ORIGIN = 'http://' + location.hostname;
   function pulse() {
     try {
@@ -70,11 +70,14 @@
       store.setItem('snLabUrl',     location.href);
       store.setItem('snLabTs',      String(Date.now()));
     } catch(e) {}
-    /* postMessage to tutor popup if we have a live reference */
     if (_tutorWin && !_tutorWin.closed) {
       try {
         _tutorWin.postMessage(
           { type: 'snLabContext', product: PRODUCT, url: location.href, ts: Date.now() },
+          TUTOR_ORIGIN
+        );
+        _tutorWin.postMessage(
+          { type: 'snHeartbeat', source: PRODUCT, ts: Date.now() },
           TUTOR_ORIGIN
         );
       } catch(e) {}
