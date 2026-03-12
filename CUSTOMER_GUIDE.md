@@ -18,7 +18,7 @@ The portal is your home base. It shows:
 
 - **Countdown timer** — how much time remains before your lab automatically shuts down
 - **Quick-launch buttons** for Nexus Repository and IQ Server
-- **🤖 Use Lab Tutor** — an AI learning assistant you can ask questions at any time (bottom-right corner)
+- **🤖 Use Lab Tutor** — an AI learning assistant you can open at any time (bottom-right corner of the portal, or bottom-right corner of any Nexus or IQ Server page)
 
 ---
 
@@ -57,7 +57,13 @@ IQ Server provides software composition analysis, policy enforcement, and firewa
 
 ## Lab Tutor
 
-The **Lab Tutor** is an AI learning assistant powered by Claude. Click **🤖 Use Lab Tutor** in the bottom-right corner of the portal to open the chat window.
+The **Lab Tutor** is an AI learning assistant powered by Claude. It opens as a small popup window positioned at the right edge of your screen so you can chat while keeping the product you're working in visible.
+
+**To open it:** click the **🤖 Use Lab Tutor** button on the portal, or the **🤖 Lab Tutor** button in the bottom-right corner of any Nexus Repository or IQ Server page.
+
+If the tutor is already open, clicking the button again simply brings the existing window to the front — it will not open a second one.
+
+> **Tip:** Keep the tutor popup open as you navigate between the portal and product pages. It will stay open and retain your conversation.
 
 ### Learning Mode
 
@@ -84,8 +90,9 @@ The tutor knows your lab's URLs, credentials, and expiry time, so you do not nee
 ### Tips
 
 - Type in the chat box and press **Enter** or click **Send**
-- The tutor remembers the conversation within the same browser session
-- If you refresh the page, the conversation history resets
+- The tutor remembers the conversation as long as the popup window stays open
+- If you close the popup and reopen it, the conversation history resets
+- The tutor knows which product page you're currently on and can tailor its guidance accordingly
 - The tutor stays focused on Nexus Repository, IQ Server, and Sonatype topics
 
 ---

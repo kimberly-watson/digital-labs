@@ -13,8 +13,8 @@ Automated AWS lab environment that provisions a full Sonatype product suite on a
 | **Nexus Repository CE** | Port 8081 — hosted Maven + npm repos, Maven Central proxy, seeded with sample artifacts |
 | **IQ Server (Lifecycle + Firewall)** | Port 8070 — all 7 products licensed automatically at boot |
 | **Lab Portal** | Port 80 — countdown timer, one-click links to Nexus and IQ Server, embedded AI tutor |
-| **Lab Tutor** | Port 8090 (internal) — Claude-powered chat proxy in Learning Mode, surfaced as a pill button on the portal |
-| **nginx** | Reverse proxy on port 80 — routes `/chat` to tutor proxy, `/` to portal |
+| **Lab Tutor** | Port 8090 (internal) — Claude-powered chat proxy in Learning Mode, surfaced as a popup window launched from the portal and from Nexus/IQ Server pages |
+| **nginx** | Reverse proxy on ports 80, 8082, 8072 — routes `/chat` to tutor proxy, `/tutor` to popup HTML, injects beacon into Nexus and IQ pages |
 | **CloudWatch Logs** | `/digital-labs/nexus` and `/digital-labs/iq-server` — Docker audit logs shipped automatically |
 
 **Seeded repositories:**
@@ -62,21 +62,41 @@ This polls the portal until it responds, then sends the welcome email to whateve
 
 ## Lab Tutor
 
-The Lab Tutor is an AI assistant powered by Claude embedded in the lab portal. It operates in **Learning Mode** — rather than giving direct answers, it guides learners to discover answers through questions and hints.
+The Lab Tutor is an AI assistant powered by Claude embedded in the lab environment. It operates in **Learning Mode** — rather than giving direct answers, it guides learners to discover answers through questions and hints.
 
 ### Architecture
 
 ```
-Browser  →  nginx /chat  →  proxy.py :8090  →  Anthropic API (Claude)
+Browser (portal, Nexus, IQ Server)
+      │
+      ├── "🤖 Lab Tutor" button (fixed, bottom-right)   ← injected by lab-tutor-beacon.js
+      │                                                     via nginx sub_filter on ports 8082 + 8072
+      │   OR
+      ├── "🤖 Use Lab Tutor" button on portal (port 80)
+      │
+      ▼
+window.open('', 'LabTutor')  →  reuses existing popup if open, opens fresh if not
+      │
+      ▼
+  /tutor  (nginx :80, static HTML)
+      │
+      ▼  user sends message
+  /chat  →  proxy.py :8090  →  Anthropic API (Claude, Learning Mode)
 ```
+
+**Popup reuse logic (beacon.js + portal):** `window.open('', 'LabTutor')` returns any existing window with that name without navigating it. If the window has content (or throws cross-origin), it is simply focused. Only when no live window is found does a fresh popup open. This prevents duplicate windows when switching between the portal and Nexus/IQ Server tabs.
+
+**Beacon iframe guard:** nginx injects `lab-tutor-beacon.js` into every HTML response passing through the Nexus (8082) and IQ Server (8072) proxies, including internal iframe content. The beacon exits immediately if `window !== window.top`, preventing button duplication from iframes.
 
 | Component | Detail |
 |---|---|
+| Beacon | `/var/www/html/lab-tutor-beacon.js` — injected by nginx `sub_filter` into Nexus (8082) and IQ Server (8072) pages; mounts orange "🤖 Lab Tutor" button and pulses context to localStorage every 2s |
+| Popup | `/var/www/html/tutor.html` — served at `http://<ip>/tutor`; polls localStorage for product context |
 | Proxy | `/opt/sonatype/tutor/proxy.py` — Python HTTPServer on port 8090 |
 | Service | `systemd lab-tutor.service`, reads `/etc/lab-tutor.env` via `EnvironmentFile=` |
 | API Key | Stored in SSM `/digital-labs/claude-api-key` (SecureString), fetched at instance boot |
 | Env File | `/etc/lab-tutor.env` — root:root 600, never world-readable |
-| nginx Route | `/chat` → `proxy_pass http://127.0.0.1:8090/chat` (conf.d/digital-labs.conf) |
+| nginx Routes | `/chat` → proxy :8090; `/tutor` → static tutor.html; `/lab-tutor-beacon.js` → beacon (conf.d/digital-labs.conf) |
 | Model | `claude-sonnet-4-20250514` |
 
 ### Rotating the API Key
@@ -101,6 +121,9 @@ aws ssm put-parameter --name "/digital-labs/claude-api-key" --value $key --type 
 | API key leading space | Deploy script wrote `CLAUDE_API_KEY= sk-ant...` with a space | `trim()` in user_data.sh; fixed in fix_key.sh |
 | nginx /chat 404 | `default.d/digital-labs.conf` was empty — no `/chat` route | Correct `proxy_pass` config in `conf.d/digital-labs.conf` |
 | JS silent failure on send | `var history` conflicts with browser's `window.history` object | Renamed to `chatHistory` throughout |
+| IQ Server opens portal | `proxy_redirect` replaced 127.0.0.1 host but dropped the path (`/assets/index.html`), causing an infinite 303 loop | Regex now captures full path: `~^http://127\.0\.0\.1(:\d+)?(.*)$` → `http://$host:8072$2` |
+| Double button on Nexus | nginx injects beacon into iframe HTML responses; each iframe has its own `window`, so `__snBeaconInit` on the parent didn't block iframes | Added `if (window !== window.top) return` at top of beacon IIFE |
+| Two popup windows open | Switching from portal to Nexus/IQ: `tutorWin` variable is gone; `window.open(URL,'LabTutor',features)` always creates a new window | Call `window.open('','LabTutor')` first — returns existing window by name; only open fresh if window is genuinely absent |
 
 
 ---
@@ -241,9 +264,9 @@ Outputs the instance ID and public IP. Full provisioning takes ~10 minutes. The 
 | Interface | URL | Credentials |
 |---|---|---|
 | Lab Portal | `http://<public_ip>` | — |
-| Nexus Repository | `http://<public_ip>:8081` | admin / admin123 |
-| IQ Server | `http://<public_ip>:8070` | admin / admin123 |
-| Lab Tutor | `http://<public_ip>` → chat bubble | — |
+| Nexus Repository | `http://<public_ip>:8082` | admin / admin123 |
+| IQ Server | `http://<public_ip>:8072` | admin / admin123 |
+| Lab Tutor | Click **🤖 Use Lab Tutor** on portal, or **🤖 Lab Tutor** button on any product page | — |
 | CloudWatch Logs | AWS Console → CloudWatch → Log groups | — |
 
 Helper scripts:
@@ -312,12 +335,17 @@ Customer browser
       │
       ▼
   nginx :80
-  ├── /        → Lab Portal (countdown + links + AI chat bubble) — static HTML
-  └── /chat    → Lab Tutor proxy :8090 → Anthropic API (Claude, Learning Mode)
+  ├── /           → Lab Portal (countdown + product links + "🤖 Use Lab Tutor" button)
+  ├── /tutor      → Lab Tutor popup (standalone HTML)
+  └── /chat       → Lab Tutor proxy :8090 → Anthropic API (Claude, Learning Mode)
 
-Direct port access:
-  :8081  Nexus Repository CE
-  :8070  IQ Server / Lifecycle / Firewall
+Proxied product ports (nginx sub_filter injects beacon into every HTML response):
+  :8082  → Nexus Repository CE (:8081)   — beacon mounts "🤖 Lab Tutor" button
+  :8072  → IQ Server / Lifecycle (:8070) — beacon mounts "🤖 Lab Tutor" button
+
+Direct container ports (not browser-accessible — blocked by nginx UA enforcement):
+  :8081  Nexus Repository CE (internal)
+  :8070  IQ Server (internal)
 ```
 
 - EC2: `t3.large`, 30GB gp3, Amazon Linux 2023
@@ -364,7 +392,9 @@ digital-labs/
 ├── backend.tf                 # S3 remote state config
 ├── cloudwatch.tf              # CloudWatch dashboard (per-lab metrics + container log tails)
 ├── cohort.tfvars.example      # Example multi-lab cohort deployment file
-├── nginx-digital-labs.conf    # nginx location blocks (/chat proxy, / static)
+├── nginx-digital-labs.conf    # nginx port 80: /chat proxy, /tutor static, /lab-tutor-beacon.js, / portal
+├── nginx-product-proxies.conf # nginx ports 8082 (Nexus) and 8072 (IQ): sub_filter beacon injection, proxy_redirect
+├── nginx-browser-enforce.conf # nginx http-level UA map: blocks non-browser requests on all product ports
 ├── user_data.sh               # EC2 boot script (~240 lines)
 ├── modules/
 │   └── lab/
@@ -374,9 +404,10 @@ digital-labs/
 │       ├── variables.tf       # Module inputs
 │       └── outputs.tf         # instance_id, public_ip, lab_url, nexus_url, iq_url, terminates_at
 ├── assets/
-│   ├── countdown.html         # Lab portal (timer + links + AI chat bubble)
+│   ├── countdown.html         # Lab portal (timer + product links + "🤖 Use Lab Tutor" button)
 │   ├── proxy.py               # Lab Tutor HTTP proxy (port 8090, internal only)
-│   └── tutor.html             # Standalone tutor page (/tutor)
+│   ├── tutor.html             # Standalone Lab Tutor popup (/tutor) — polls localStorage for context
+│   └── lab-tutor-beacon.js    # Injected by nginx into Nexus + IQ pages; mounts button + pulses localStorage
 ├── lambda/
 │   ├── welcomer.py            # Sends branded HTML welcome email via SES when portal is ready
 │   ├── notifier.py            # Sends branded HTML 48hr warning email via SES
@@ -402,7 +433,7 @@ digital-labs/
 | Sonatype Personnel View | ✅ Done | `view-labs.ps1` — local HTML dashboard from `terraform output` with live countdowns |
 | SES production access | ✅ Done | Approved March 2026 — 50,000 msg/day, sandbox lifted in us-east-1 |
 | sonatype.com DKIM DNS | ✅ Done | Verified in us-east-1, confirmed March 2026 |
-| Lab Tutor AI chat | ✅ Done | Claude (Learning Mode) — working as of March 11, 2026 |
+| Lab Tutor AI chat | ✅ Done | Popup architecture — beacon injected into Nexus + IQ via nginx sub_filter; single popup window reused across tabs via `window.open('','LabTutor')` |
 | CloudWatch telemetry | 🔜 Next | Nexus + IQ Server audit logs → CloudWatch Logs via CloudWatch agent |
 | Custom domain / HTTPS | 🔜 Blocked | Requires DNS access — Route 53 + ACM cert for `https://labs.sonatype.com` |
 
