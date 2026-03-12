@@ -210,16 +210,18 @@
     } catch (e) {}
   }
 
-  /* postMessage listener — beacon sends snLabContext across the cross-origin boundary */
+  /* postMessage listener — beacon sends snLabContext across the cross-origin boundary.
+     window.focus() on self is always permitted; this is how we bring the tutor to front
+     when the user switches to a new page, since browsers block focus() on other windows. */
   window.addEventListener('message', function (evt) {
     try {
       var d = evt.data;
       if (!d || d.type !== 'snLabContext') return;
-      /* Update in-memory context and refresh the bar immediately */
       store.setItem('snLabProduct', d.product || '');
       store.setItem('snLabUrl',     d.url     || '');
       store.setItem('snLabTs',      String(d.ts || Date.now()));
       pollContext();
+      window.focus();
     } catch(e) {}
   });
 
