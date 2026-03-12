@@ -175,19 +175,28 @@
       var top  = Math.max(0, Math.round((screen.availHeight - winH) / 2));
       var feat = 'width='+winW+',height='+winH+',left='+left+',top='+top
                + ',resizable=yes,scrollbars=no,location=no,toolbar=no,menubar=no,status=no';
-      if (!tutorWin || tutorWin.closed) {
-        tutorWin = window.open(url, 'LabTutor', feat);
-        // Safari and some browsers block popups even on direct click if not triggered
-        // synchronously from a user event — provide a direct link fallback
-        if (!tutorWin || tutorWin.closed || typeof tutorWin.closed === 'undefined') {
-          var msg = document.getElementById('popup-blocked-msg');
-          if (msg) {
-            msg.innerHTML = 'Popup blocked. <a href="' + url + '" target="_blank" style="color:#DAFF02;font-weight:700;">Open Lab Tutor in new tab</a>';
-            msg.style.display = 'block';
+
+      /* Check for existing window by name before opening a new one */
+      var existing = null;
+      try { existing = window.open('', 'LabTutor'); } catch(e) {}
+      if (existing && !existing.closed) {
+        try {
+          if (existing.location.href && existing.location.href !== 'about:blank') {
+            existing.focus(); tutorWin = existing; return;
           }
+          existing.close();
+        } catch(e) {
+          existing.focus(); tutorWin = existing; return;
         }
-      } else {
-        tutorWin.focus();
+      }
+
+      tutorWin = window.open(url, 'LabTutor', feat);
+      if (!tutorWin || tutorWin.closed || typeof tutorWin.closed === 'undefined') {
+        var msg = document.getElementById('popup-blocked-msg');
+        if (msg) {
+          msg.innerHTML = 'Popup blocked. <a href="' + url + '" target="_blank" style="color:#DAFF02;font-weight:700;">Open Lab Tutor in new tab</a>';
+          msg.style.display = 'block';
+        }
       }
     }
     // Bring tutor to front whenever the user switches back to the portal
