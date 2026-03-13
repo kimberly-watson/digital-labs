@@ -11,6 +11,8 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_caller_identity" "current" {}
+
 # ---------------------------------------------------------------------------
 # Locals: resolve lab map
 # ---------------------------------------------------------------------------
@@ -112,7 +114,7 @@ resource "aws_iam_policy" "s3_assets_read" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["s3:GetObject"]
-      Resource = "arn:aws:s3:::digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID/assets/*"
+      Resource = "arn:aws:s3:::digital-labs-tfstate-${data.aws_caller_identity.current.account_id}/assets/*"
     }]
   })
 }
@@ -266,21 +268,21 @@ resource "aws_security_group" "lab_sg" {
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_object" "countdown_html" {
-  bucket = "digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID"
+  bucket = "digital-labs-tfstate-${data.aws_caller_identity.current.account_id}"
   key    = "assets/countdown.html"
   source = "${path.module}/assets/countdown.html"
   etag   = filemd5("${path.module}/assets/countdown.html")
 }
 
 resource "aws_s3_object" "proxy_py" {
-  bucket = "digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID"
+  bucket = "digital-labs-tfstate-${data.aws_caller_identity.current.account_id}"
   key    = "assets/proxy.py"
   source = "${path.module}/assets/proxy.py"
   etag   = filemd5("${path.module}/assets/proxy.py")
 }
 
 resource "aws_s3_object" "tutor_html" {
-  bucket = "digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID"
+  bucket = "digital-labs-tfstate-${data.aws_caller_identity.current.account_id}"
   key    = "assets/tutor.html"
   source = "${path.module}/assets/tutor.html"
   etag   = filemd5("${path.module}/assets/tutor.html")
