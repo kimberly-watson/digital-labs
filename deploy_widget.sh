@@ -4,9 +4,11 @@ set -euo pipefail
 echo "=== Deploying Lab Tutor widget + product proxy nginx config ==="
 
 # 1. Pull updated assets from S3
-aws s3 cp s3://digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID/assets/lab-tutor-widget.js /var/www/html/lab-tutor-widget.js
-aws s3 cp s3://digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID/assets/proxy.py            /opt/sonatype/tutor/proxy.py
-aws s3 cp s3://digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID/assets/nginx-product-proxies.conf /etc/nginx/conf.d/product-proxies.conf
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ASSETS_BUCKET="digital-labs-tfstate-${ACCOUNT_ID}"
+aws s3 cp "s3://${ASSETS_BUCKET}/assets/lab-tutor-widget.js" /var/www/html/lab-tutor-widget.js
+aws s3 cp "s3://${ASSETS_BUCKET}/assets/proxy.py"            /opt/sonatype/tutor/proxy.py
+aws s3 cp "s3://${ASSETS_BUCKET}/assets/nginx-product-proxies.conf" /etc/nginx/conf.d/product-proxies.conf
 chmod 644 /var/www/html/lab-tutor-widget.js
 chmod 500 /opt/sonatype/tutor/proxy.py
 chown labclock:labclock /opt/sonatype/tutor/proxy.py

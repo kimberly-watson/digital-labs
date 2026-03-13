@@ -2,12 +2,17 @@
 set -euxo pipefail
 
 REGION=us-east-1
-ASSETS_BUCKET=digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID
 ASSETS_PREFIX=assets
+
+# IMDSv2 token is fetched below — ACCOUNT_ID and ASSETS_BUCKET are set after the token is available.
 
 # IMDSv2: get a short-lived token for all metadata calls
 IMDS_TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
   -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+
+# Derive the S3 assets bucket name from the account ID (avoids hardcoding)
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ASSETS_BUCKET="digital-labs-tfstate-${ACCOUNT_ID}"
 
 # Discover this lab's key from the EC2 instance tag (set by Terraform at deploy time).
 # The lab_key determines the SSM parameter path, allowing multiple labs to coexist.
