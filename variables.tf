@@ -46,9 +46,9 @@ variable "customer_email" {
 }
 
 variable "ses_from_email" {
-  description = "Verified SES sender address (e.g. digital-labs@sonatype.com). Must be verified in AWS SES before deploying."
+  description = "Verified SES sender address. TEMPORARY: using kimberly.watson@sonatype.com until mailbox access for digital-labs@sonatype.com is confirmed and that address is re-verified in the CS account (216953896714). Switch back once resolved."
   type        = string
-  default     = "digital-labs@sonatype.com"
+  default     = "kimberly.watson@sonatype.com"
 }
 
 # ---------------------------------------------------------------------------

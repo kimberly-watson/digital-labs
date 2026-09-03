@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - curl -o terraform.zip -fsSL https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip
+      - unzip -o terraform.zip -d /usr/local/bin
+      - pip3 install boto3 --quiet
+  build:
+    commands:
+      - echo "Building cohort vars from pending requests in DynamoDB"
+      - python3 scripts/build_cohort_vars.py
+      - terraform init -input=false
+      - terraform apply -input=false -auto-approve -var-file=cohort.auto.tfvars.json
+      - echo "Apply complete, marking requests provisioned"
+      - python3 scripts/mark_requests_provisioned.py
+
+artifacts:
+  files:
+    - cohort.auto.tfvars.json

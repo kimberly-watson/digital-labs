@@ -4,7 +4,7 @@ terraform {
   # Before cloning and using this repo, update the bucket name to match your own
   # state bucket: digital-labs-tfstate-<your-aws-account-id>
   backend "s3" {
-    bucket         = "digital-labs-tfstate-YOUR-AWS-ACCOUNT-ID"
+    bucket         = "digital-labs-tfstate-216953896714"
     key            = "digital-labs/terraform.tfstate"
     region         = "us-east-1"
     use_lockfile   = true
