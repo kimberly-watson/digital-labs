@@ -42,10 +42,9 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "ses:*",
           "ssm:*",
           "s3:*",
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:Scan",
-          "dynamodb:UpdateItem",
+          "dynamodb:*",
+          "apigateway:*",
+          "codebuild:*",
           "logs:*",
           "cloudwatch:*",
           "sts:GetCallerIdentity"
