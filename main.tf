@@ -26,13 +26,15 @@ data "aws_caller_identity" "current" {}
 # ---------------------------------------------------------------------------
 
 locals {
-  labs_resolved = length(var.labs) > 0 ? var.labs : {
-    "default" = {
-      customer_email = var.customer_email
-      lease_duration = var.lease_duration
-      lab_name       = var.lab_name
-    }
-  }
+  labs_resolved = length(var.labs) > 0 ? var.labs : (
+    var.customer_email != "" ? {
+      "default" = {
+        customer_email = var.customer_email
+        lease_duration = var.lease_duration
+        lab_name       = var.lab_name
+      }
+    } : {}
+  )
 }
 
 # ---------------------------------------------------------------------------
@@ -292,6 +294,13 @@ resource "aws_s3_object" "tutor_html" {
   etag   = filemd5("${path.module}/assets/tutor.html")
 }
 
+resource "aws_s3_object" "provision_sh" {
+  bucket = "digital-labs-tfstate-${data.aws_caller_identity.current.account_id}"
+  key    = "assets/provision.sh"
+  source = "${path.module}/assets/provision.sh"
+  etag   = filemd5("${path.module}/assets/provision.sh")
+}
+
 # ---------------------------------------------------------------------------
 # Lab module instances
 # ---------------------------------------------------------------------------
@@ -320,6 +329,7 @@ module "lab" {
     aws_s3_object.countdown_html,
     aws_s3_object.proxy_py,
     aws_s3_object.tutor_html,
+    aws_s3_object.provision_sh,
   ]
 }
 

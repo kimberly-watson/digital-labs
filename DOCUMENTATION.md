@@ -120,6 +120,7 @@ in the repo for the full sequence diagram.
 
 | Item | Detail |
 |---|---|
+| ~~user_data.sh exceeds 16KB EC2 limit~~ | **Fixed 2026-09-04.** Split into a minimal user_data.sh (1,317 bytes) that downloads and runs assets/provision.sh (20,363 bytes) from S3 at boot. |
 | IQ Server password banner | Cannot be cleared via REST API alone. Cosmetic for PoC. |
 | HTTP only | No TLS. Acceptable for internal PoC only. |
 | Shared PoC instance model | Each lab is its own EC2 instance per `lab_key`, but the underlying AMI/boot process is shared and not yet hardened for high volume. |
@@ -143,6 +144,18 @@ verify after any change:
 
 ## 12. Change Log
 
+- 2026-09-04: Fixed the 16KB user_data.sh bug. Split into a minimal
+  user_data.sh (fetches boot variables, downloads provision.sh from S3,
+  executes it) and assets/provision.sh (the full Docker/Nexus/IQ/nginx/
+  Lab Tutor/CloudWatch setup, uploaded to S3 with no size limit). Added
+  aws_s3_object.provision_sh to main.tf and to the module's depends_on
+  list.
+- 2026-09-04: Fixed main.tf locals so the bootstrap apply (no customer_email,
+  no labs map) creates zero lab instances instead of one stray "default"
+  lab with a blank customer email.
+- 2026-09-04: Discovered user_data.sh is 21,408 bytes, over EC2's 16,384-byte
+  user_data limit. Blocks all lab creation until fixed. See Known
+  Limitations.
 - 2026-09-04: SES sender temporarily switched to kimberly.watson@sonatype.com
   (verified directly) until mailbox access for digital-labs@sonatype.com is
   confirmed and that address is re-verified in 216953896714.
