@@ -22,7 +22,7 @@ Automated AWS lab environment that provisions a full Sonatype product suite on a
 - `npm-hosted-lab` Ã¢â‚¬â€ sample npm package (`@sonatype-lab/sample-lib:1.0.0`)
 - `maven-proxy-central` Ã¢â‚¬â€ proxy to Maven Central
 
-**Default credentials:** `admin` / `admin123`
+**Default credentials:** `admin` / `SonatypeLab2026!`
 
 ---
 
@@ -150,7 +150,7 @@ aws ssm put-parameter --name "/digital-labs/claude-api-key" --value $key --type 
 | Prompt injection via product/pageUrl | Client-supplied `product` and `pageUrl` fields were concatenated directly into the Claude system prompt | `sanitize()` strips control chars + caps length; `product` allowlisted to `{"Nexus Repository", "IQ Server"}` only |
 | API key open CORS | `proxy.py` returned `Access-Control-Allow-Origin: *`, allowing any origin to call the tutor proxy | CORS locked to same-origin host (`http://<ip>`) |
 | System prompt truncated by systemd | Multi-line `TUTOR_SYSTEM_PROMPT` in `EnvironmentFile=` silently truncated at first newline | Base64-encoded at write time in `user_data.sh`; decoded at startup in `proxy.py` |
-| Credentials in Anthropic API payload | `admin/admin123` included in system prompt, sent to Anthropic API on every chat | Credentials removed; tutor redirects credential questions to the portal |
+| Credentials in Anthropic API payload | `admin/SonatypeLab2026!` included in system prompt, sent to Anthropic API on every chat | Credentials removed; tutor redirects credential questions to the portal |
 | Raw ports 8081/8070 open externally | Security group exposed direct container ports, bypassing nginx UA enforcement and beacon injection | Ports removed from security group; all browser access via nginx proxies 8082/8072 only |
 | IQ Server image unpinned | `sonatype/nexus-iq-server:latest` could pull a breaking version on next deploy | Pinned to `1.201.0-02` (version confirmed from running instance) |
 | `/tmp/iq-cookies.txt` left on disk | IQ license CSRF flow wrote session cookies to world-readable `/tmp` and never cleaned up | `rm -f /tmp/iq-cookies.txt` added after license upload |
@@ -304,8 +304,8 @@ Outputs the instance ID and public IP. Full provisioning takes ~10 minutes. The 
 | Interface | URL | Credentials |
 |---|---|---|
 | Lab Portal | `http://<public_ip>` | Ã¢â‚¬â€ |
-| Nexus Repository | `http://<public_ip>:8082` | admin / admin123 |
-| IQ Server | `http://<public_ip>:8072` | admin / admin123 |
+| Nexus Repository | `http://<public_ip>:8082` | admin / SonatypeLab2026! |
+| IQ Server | `http://<public_ip>:8072` | admin / SonatypeLab2026! |
 | Lab Tutor | Click **Ã°Å¸Â¤â€“ Use Lab Tutor** on portal, or **Ã°Å¸Â¤â€“ Lab Tutor** button on any product page | Ã¢â‚¬â€ |
 | CloudWatch Logs | AWS Console Ã¢â€ â€™ CloudWatch Ã¢â€ â€™ Log groups | Ã¢â‚¬â€ |
 
@@ -411,7 +411,7 @@ Internal container ports (NOT exposed in security group Ã¢â‚¬â€ all b
 | 4 | Start Nexus CE on port 8081 (Docker, `--log-driver awslogs`) |
 | 5 | Start IQ Server on ports 8070/8071 with license volume mount (Docker, `--log-driver awslogs`) |
 | 6 | Wait for IQ Server → CSRF token → POST license via REST API (retry loop: up to 10 attempts, 20s apart) |
-| 7 | Wait for Nexus → read generated password (`set +x` guards xtrace) → set to `admin123` → `rm -f /nexus-data/admin.password` → wipe variable from memory |
+| 7 | Wait for Nexus → read generated password (`set +x` guards xtrace) → set to `SonatypeLab2026!` → `rm -f /nexus-data/admin.password` → wipe variable from memory |
 | 8 | Seed Nexus: `lab-blob-store`, `maven-hosted-lab`, `npm-hosted-lab`, `maven-proxy-central` |
 | 9 | Seed Nexus artifacts: `sample-app` JAR + `@sonatype-lab/sample-lib` npm package → `rm -rf /tmp/fake-maven /tmp/fake-npm` |
 | 10 | **IQ Server seeding:** create "Sonatype Lab" org → "Sample Application" → submit CycloneDX SBOM with 4 known-vulnerable components → poll for scan report |

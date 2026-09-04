@@ -92,7 +92,7 @@ def build_html(lab_url, nexus_url, iq_url, termination_time):
             <p style="margin:0;font-size:14px;color:#333;">
               Username: <span style="font-family:monospace;background:#e8e8e8;padding:2px 6px;border-radius:3px;font-size:13px;">admin</span>
               &nbsp;&nbsp;
-              Password: <span style="font-family:monospace;background:#e8e8e8;padding:2px 6px;border-radius:3px;font-size:13px;">admin123</span>
+              Password: <span style="font-family:monospace;background:#e8e8e8;padding:2px 6px;border-radius:3px;font-size:13px;">SonatypeLab2026!</span>
             </p>
           </td></tr>
         </table>
@@ -150,7 +150,7 @@ def handler(event, context):
         f"Products:\n"
         f"  Nexus Repository: {nexus_url}\n"
         f"  IQ Server:        {iq_url}\n\n"
-        f"Default credentials: admin / admin123\n\n"
+        f"Default credentials: admin / SonatypeLab2026!\n\n"
         f"Your lab will be automatically terminated on {termination_time} UTC.\n"
         f"Need more time? Contact your Sonatype representative before expiry.\n"
     )

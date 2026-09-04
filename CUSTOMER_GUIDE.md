@@ -41,7 +41,7 @@ Sample artifacts are pre-loaded so you can explore the interface right away.
 **To sign in:**
 1. Click **Sign in** in the top-right corner
 2. Username: `admin`
-3. Password: `admin123`
+3. Password: `SonatypeLab2026!`
 
 ### IQ Server (Lifecycle & Firewall)
 
@@ -51,7 +51,7 @@ IQ Server provides software composition analysis, policy enforcement, and firewa
 
 **To sign in:**
 1. Username: `admin`
-2. Password: `admin123`
+2. Password: `SonatypeLab2026!`
 
 ---
 
@@ -118,7 +118,7 @@ Your lab will automatically shut down at the time shown on the portal countdown 
 Services can take up to 10 minutes to fully start after the lab is provisioned. Wait a few minutes and try again. You can also ask the Lab Tutor Ã¢â‚¬â€ it can tell you the current status of your services.
 
 **I forgot my password.**
-Default credentials are always `admin` / `admin123`. These are set automatically and do not change.
+Default credentials are always `admin` / `SonatypeLab2026!`. These are set automatically and do not change.
 
 **The countdown timer shows "--".**
 Refresh the page. If it continues, the timer service may still be starting up Ã¢â‚¬â€ wait 2Ã¢â‚¬â€œ3 minutes and try again.
@@ -128,9 +128,6 @@ That's by design. The tutor uses Learning Mode, which guides you through problem
 
 **The Lab Tutor says "the tutor is not available right now."**
 This means the tutor service is temporarily unavailable. Wait 30 seconds and try again. If it persists, refresh the page.
-
-**IQ Server shows a prompt to change the administrator password.**
-This is a cosmetic notice from IQ Server about its default credentials. You can safely dismiss it by clicking the X or "Remind me later" â€” it does not affect any lab functionality. Do not change the password, as the lab is pre-configured to use `admin123`.
 
 **I need more time.**
 Contact your Sonatype representative before your lab expires. Extensions must be arranged in advance and cannot be granted after the lab has terminated.
