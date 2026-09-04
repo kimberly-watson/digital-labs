@@ -133,7 +133,9 @@ in the repo for the full sequence diagram.
 | Shared PoC instance model | Each lab is its own EC2 instance per `lab_key`, but the underlying AMI/boot process is shared and not yet hardened for high volume. |
 | Portal auth | Shared code, not per-user identity. |
 | ~~IQ Server password/base-URL banners visible to students~~ | **Fixed 2026-09-04.** Base URL: fixed via IQ Server's documented Configuration REST API (`PUT /api/v2/config`), set right after license install. Password: IQ Server has no REST API for a user to change their own password (unlike Nexus), so this uses Playwright browser automation to drive the actual "Change Password" UI flow — selectors captured live against a running 1.203.3 instance. Changed both Nexus's and IQ Server's admin password to the same new value (`SonatypeLab2026!`, was `admin123`) to keep one unified login for students, since the lab shows a single shared credential, not per-product ones. Non-fatal: if the browser automation fails, the lab still boots and the banner just remains. Requires installing Playwright + Chromium on every boot (python3-pip, playwright, chromium, several dnf packages since Playwright's `--with-deps` doesn't support Amazon Linux) — adds real boot time. |
+| ~~Welcome email never arrives~~ | **Fixed 2026-09-04.** welcomer Lambda polls the portal (nginx) before sending, waiting up to `MAX_WAIT_SECONDS` (was 600s) inside a Lambda with a 660s timeout. Today's Wiz sensor and Playwright/Chromium additions pushed real boot time to ~750s (nginx is one of the last things to start, after Wiz install at the top and the IQ password-change/Playwright step near the end), so the Lambda was almost certainly being killed by its own timeout before nginx ever came up. Bumped Lambda timeout to 890s (near AWS's 900s hard maximum) and `MAX_WAIT_SECONDS` to 850s. Longer-term, moving nginx/countdown-clock install earlier in provision.sh (it only depends on values fetched at the very top) would make the portal available in ~1-2 minutes regardless of how long Wiz/Playwright/seeding take — not done yet, noted here for later. |
 | Old-account labs | Labs already running in 288833448839 are not migrated; they finish their existing lease there. |
+| Browser may reuse cached downloads | When Claude presents a file with the same name twice in one session (e.g. `provision.sh` updated a second time), the browser can silently reuse the first cached download instead of fetching the new version, even though the download appears to succeed. Caught once already (2026-09-04) when a "successfully downloaded" provision.sh was actually stale, silently missing the password-change section, and Terraform saw no diff since the stale content matched what was already in S3. Verify content (e.g. `Select-String -Pattern <something-new>`) after any re-download of a previously-downloaded filename, or ask for a renamed file to force a fresh fetch. |
 | ~~License needs SBOM Manager excluded~~ | **Resolved 2026-09-04.** Third license (c1cadd34-aed6-443a-879a-ea4ea54c2a65, expires 2027/08/01, no SBOM Manager entitlement) passed signature verification and installed successfully — confirmed via `GET /api/v2/solutions/licensed` returning `[]` (empty = no unlicensed features) instead of the prior 402 error. Stored in SSM (`/digital-labs/sonatype-license`, version 4), so every future lab created through the portal picks it up automatically at boot with no further changes needed. |
 | Wiz sensor install is non-fatal | If Wiz credentials can't be retrieved or the sensor install fails, provision.sh logs a warning and continues booting the lab rather than aborting. This is a deliberate tradeoff: InfoSec requires the sensor, but a customer lab shouldn't fail entirely because a security agent couldn't reach its backend. Worth revisiting with InfoSec if this needs to be a hard requirement instead. |
 
@@ -154,6 +156,17 @@ verify after any change:
 
 ## 12. Change Log
 
+- 2026-09-04: Fixed welcome email never arriving. welcomer Lambda's own
+  portal-readiness retry (600s) and its Lambda timeout (660s) were both
+  too short once Wiz sensor + Playwright/Chromium pushed real boot time
+  to ~750s. Bumped Lambda timeout to 890s and MAX_WAIT_SECONDS to 850s.
+  Caught because a real customer-facing test (lab-5fcf40f8) never
+  received its email.
+- 2026-09-04: Verified the password/base-URL fix end to end on a genuinely
+  fresh instance (i-0e07981db8124ed46): base URL correctly set to
+  http://13.217.214.11:8070/, old password (admin123) rejected on both
+  Nexus and IQ Server, new password (SonatypeLab2026!) works on both. Full
+  boot completed in ~12.5 minutes with Playwright/Chromium included.
 - 2026-09-04: Fixed the IQ Server "base URL not configured" and "change
   administrator password" banners students were seeing. Base URL set via
   IQ Server's Configuration REST API. Password: added Playwright browser

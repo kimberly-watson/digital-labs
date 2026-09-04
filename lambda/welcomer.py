@@ -6,7 +6,7 @@ import time
 ec2 = boto3.client("ec2", region_name=os.environ["APP_REGION"])
 ses = boto3.client("ses", region_name=os.environ["APP_REGION"])
 
-MAX_WAIT_SECONDS = 600
+MAX_WAIT_SECONDS = 850
 POLL_INTERVAL    = 30
 
 
@@ -15,7 +15,8 @@ def wait_for_portal(ip):
     deadline = time.time() + MAX_WAIT_SECONDS
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(urllib.request.Request(url), timeout=5) as resp:
+            request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; digital-labs-welcomer)"})
+            with urllib.request.urlopen(request, timeout=5) as resp:
                 if resp.status == 200:
                     print(f"Portal is up at {url}")
                     return True

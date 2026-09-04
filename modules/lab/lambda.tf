@@ -64,7 +64,7 @@ resource "aws_lambda_function" "welcomer" {
   runtime          = "python3.12"
   filename         = data.archive_file.welcomer.output_path
   source_code_hash = data.archive_file.welcomer.output_base64sha256
-  timeout          = 660
+  timeout          = 890
 
   environment {
     variables = {
