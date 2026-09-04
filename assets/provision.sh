@@ -202,18 +202,32 @@ cd /
 # Creating a security policy is an excellent first lab exercise for students.
 
 # Create organization under Root
-IQ_ORG_RESPONSE=$(curl -s -u "admin:admin123" \
+# Uses the same CSRF-cookie pattern as the license upload above — write
+# endpoints reject Basic Auth alone, same root cause as the license step.
+rm -f /tmp/iq-seed-cookies.txt
+curl -s -c /tmp/iq-seed-cookies.txt -b /tmp/iq-seed-cookies.txt \
+  -u "admin:admin123" \
+  http://localhost:8070/api/v2/solutions/licensed > /dev/null 2>&1 || true
+IQ_SEED_CSRF=$(grep 'CLM-CSRF-TOKEN' /tmp/iq-seed-cookies.txt | awk '{print $NF}' || true)
+
+IQ_ORG_RESPONSE=$(curl -s -c /tmp/iq-seed-cookies.txt -b /tmp/iq-seed-cookies.txt \
+  -u "admin:admin123" \
+  -H "X-CLM-CSRF-TOKEN: $IQ_SEED_CSRF" \
   -X POST http://localhost:8070/api/v2/organizations \
   -H "Content-Type: application/json" \
   -d '{"name":"Sonatype Lab","parentOrganizationId":"ROOT_ORGANIZATION_ID"}')
+echo "IQ seed: org response=$IQ_ORG_RESPONSE"
 IQ_ORG_ID=$(echo "$IQ_ORG_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
 echo "IQ seed: org created id=$IQ_ORG_ID"
 
 # Create application under the org
-IQ_APP_RESPONSE=$(curl -s -u "admin:admin123" \
+IQ_APP_RESPONSE=$(curl -s -c /tmp/iq-seed-cookies.txt -b /tmp/iq-seed-cookies.txt \
+  -u "admin:admin123" \
+  -H "X-CLM-CSRF-TOKEN: $IQ_SEED_CSRF" \
   -X POST http://localhost:8070/api/v2/applications \
   -H "Content-Type: application/json" \
   -d "{\"publicId\":\"sample-app\",\"name\":\"Sample Application\",\"organizationId\":\"$IQ_ORG_ID\"}")
+echo "IQ seed: app response=$IQ_APP_RESPONSE"
 IQ_APP_ID=$(echo "$IQ_APP_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
 echo "IQ seed: app created id=$IQ_APP_ID"
 
@@ -251,10 +265,13 @@ cat > /tmp/iq-seed-sbom.xml << SBOMEOF
 </bom>
 SBOMEOF
 
-IQ_SCAN_RESPONSE=$(curl -s -u "admin:admin123" \
+IQ_SCAN_RESPONSE=$(curl -s -c /tmp/iq-seed-cookies.txt -b /tmp/iq-seed-cookies.txt \
+  -u "admin:admin123" \
+  -H "X-CLM-CSRF-TOKEN: $IQ_SEED_CSRF" \
   -X POST "http://localhost:8070/api/v2/scan/applications/${IQ_APP_ID}/sources/ci" \
   -H "Content-Type: application/xml" \
   --data-binary @/tmp/iq-seed-sbom.xml)
+echo "IQ seed: scan response=$IQ_SCAN_RESPONSE"
 IQ_SCAN_STATUS_URL=$(echo "$IQ_SCAN_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('statusUrl',''))" 2>/dev/null || true)
 echo "IQ seed: scan submitted statusUrl=$IQ_SCAN_STATUS_URL"
 
@@ -273,7 +290,7 @@ until [ -n "$IQ_SCAN_DONE" ]; do
   echo "IQ seed: scan poll attempt $IQ_SCAN_ATTEMPTS done=$IQ_SCAN_DONE"
 done
 
-rm -f /tmp/iq-seed-sbom.xml
+rm -f /tmp/iq-seed-sbom.xml /tmp/iq-seed-cookies.txt
 echo "IQ seed: complete — org=$IQ_ORG_ID app=$IQ_APP_ID"
 
 # == COUNTDOWN CLOCK ==
