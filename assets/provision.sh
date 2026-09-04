@@ -131,6 +131,17 @@ done
 # Clean up session cookies — /tmp is world-readable on most Linux configs
 rm -f /tmp/iq-cookies.txt
 
+# Set the Base URL so IQ Server stops showing the "base URL not configured"
+# warning to students. Required for email links, PR/CI links, and report
+# links per Sonatype's Configuration REST API. Fetched here (not just later
+# for the Lab Tutor prompt) so it's available immediately after licensing.
+PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+  http://169.254.169.254/latest/meta-data/public-ipv4)
+curl -s -u "admin:admin123" \
+  -X PUT -H "Content-Type: application/json" \
+  -d "{\"baseUrl\": \"http://${PUBLIC_IP}:8070\"}" \
+  http://localhost:8070/api/v2/config || true
+
 # Wait for Nexus to be ready, then set admin password
 # set +x: suppress xtrace — GENERATED (Nexus admin.password) must not appear in cloud-init logs
 set +x
@@ -148,7 +159,7 @@ curl -s \
   -u "admin:$GENERATED" \
   -X PUT \
   -H "Content-Type: text/plain" \
-  --data "admin123" \
+  --data "SonatypeLab2026!" \
   http://localhost:8081/service/rest/v1/security/users/admin/change-password
 # Delete the generated password from memory — it is no longer valid after the change above
 GENERATED="cleared"
@@ -163,25 +174,25 @@ sleep 180
 sleep 30
 
 # Create blob store
-curl -s -u "admin:admin123" \
+curl -s -u "admin:SonatypeLab2026!" \
   -X POST -H "Content-Type: application/json" \
   -d '{"name":"lab-blob-store","path":"lab-blob-store","softQuota":{"type":"spaceUsedQuota","limit":5368709120}}' \
   http://localhost:8081/service/rest/v1/blobstores/file
 
 # Create Maven hosted repo
-curl -s -u "admin:admin123" \
+curl -s -u "admin:SonatypeLab2026!" \
   -X POST -H "Content-Type: application/json" \
   -d '{"name":"maven-hosted-lab","online":true,"storage":{"blobStoreName":"lab-blob-store","strictContentTypeValidation":true,"writePolicy":"allow"},"maven":{"versionPolicy":"MIXED","layoutPolicy":"STRICT"}}' \
   http://localhost:8081/service/rest/v1/repositories/maven/hosted
 
 # Create npm hosted repo
-curl -s -u "admin:admin123" \
+curl -s -u "admin:SonatypeLab2026!" \
   -X POST -H "Content-Type: application/json" \
   -d '{"name":"npm-hosted-lab","online":true,"storage":{"blobStoreName":"lab-blob-store","strictContentTypeValidation":true,"writePolicy":"allow"}}' \
   http://localhost:8081/service/rest/v1/repositories/npm/hosted
 
 # Create Maven proxy repo
-curl -s -u "admin:admin123" \
+curl -s -u "admin:SonatypeLab2026!" \
   -X POST -H "Content-Type: application/json" \
   -d '{"name":"maven-proxy-central","online":true,"storage":{"blobStoreName":"lab-blob-store","strictContentTypeValidation":true},"proxy":{"remoteUrl":"https://repo1.maven.org/maven2/","contentMaxAge":1440,"metadataMaxAge":1440},"negativeCache":{"enabled":true,"timeToLive":1440},"httpClient":{"blocked":false,"autoBlock":true},"maven":{"versionPolicy":"RELEASE","layoutPolicy":"STRICT"}}' \
   http://localhost:8081/service/rest/v1/repositories/maven/proxy
@@ -190,7 +201,7 @@ curl -s -u "admin:admin123" \
 mkdir -p /tmp/fake-maven
 echo "Manifest-Version: 1.0" > /tmp/fake-maven/MANIFEST.MF
 zip -j /tmp/fake-maven/sample-app-1.0.0.jar /tmp/fake-maven/MANIFEST.MF
-curl -s -u "admin:admin123" \
+curl -s -u "admin:SonatypeLab2026!" \
   -X POST "http://localhost:8081/service/rest/v1/components?repository=maven-hosted-lab" \
   -F "maven2.groupId=com.sonatype.lab" \
   -F "maven2.artifactId=sample-app" \
@@ -211,7 +222,7 @@ cat > /tmp/fake-npm/package/package.json << 'PKGJSON'
 PKGJSON
 echo "module.exports = { hello: () => 'Sonatype Lab' };" > /tmp/fake-npm/package/index.js
 cd /tmp/fake-npm && tar -czf sonatype-lab-sample-lib-1.0.0.tgz package/
-curl -s -u "admin:admin123" \
+curl -s -u "admin:SonatypeLab2026!" \
   -X POST "http://localhost:8081/service/rest/v1/components?repository=npm-hosted-lab" \
   -F "npm.asset=@/tmp/fake-npm/sonatype-lab-sample-lib-1.0.0.tgz;type=application/x-compressed"
 
@@ -325,6 +336,21 @@ done
 rm -f /tmp/iq-seed-sbom.xml /tmp/iq-seed-cookies.txt
 echo "IQ seed: complete — org=$IQ_ORG_ID app=$IQ_APP_ID"
 
+# ---------------------------------------------------------------------------
+# Change IQ Server's admin password from the shipped default (admin123).
+# IQ Server has no documented REST API for a user to change their own
+# password (unlike Nexus, already changed above), so this drives the
+# actual UI via a headless browser. Selectors captured live against a
+# running 1.203.3 instance on 2026-09-04. Best-effort: a failure here
+# logs a warning and the lab still boots — students would just see the
+# password banner in that case, not a broken lab.
+dnf -y install python3-pip 2>&1 | tail -5
+python3 -m pip install playwright --quiet 2>&1 | tail -5
+python3 -m playwright install chromium 2>&1 | tail -5
+dnf -y install nss atk at-spi2-atk cups-libs libdrm libxkbcommon libXcomposite libXdamage libXfixes libXrandr mesa-libgbm pango alsa-lib at-spi2-core 2>&1 | tail -5
+aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/change_iq_password.py /tmp/change_iq_password.py
+python3 /tmp/change_iq_password.py "SonatypeLab2026!" || echo "WARNING: IQ Server password change failed — banner will remain, lab still usable" >&2
+
 # == COUNTDOWN CLOCK ==
 # Served directly as a static file by nginx Ã¢â‚¬â€ no intermediate Python process needed.
 # This avoids the single-threaded TCPServer bottleneck that caused 504s under bot scan load.
@@ -350,8 +376,7 @@ mkdir -p /opt/sonatype/tutor
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/proxy.py /opt/sonatype/tutor/proxy.py
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/tutor.html /opt/sonatype/tutor/index.html
 
-PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
-  http://169.254.169.254/latest/meta-data/public-ipv4)
+# PUBLIC_IP already fetched earlier (right after license install)
 
 # set +x: suppress xtrace -- CLAUDE_API_KEY must NEVER appear in cloud-init logs or CloudWatch
 set +x
