@@ -144,7 +144,7 @@ def handler(event, context):
 
     wait_for_portal(ip)
 
-    subject   = "Your Sonatype Digital Lab is Ready"
+    subject   = "[Digital Labs] Your Sonatype Digital Lab is Ready"
     text_body = (
         f"Your Sonatype Digital Lab is ready.\n\n"
         f"Lab Portal: {lab_url}\n\n"
@@ -159,7 +159,7 @@ def handler(event, context):
 
     ses.send_email(
         Source=from_email,
-        Destination={"ToAddresses": [customer_email]},
+        Destination={"ToAddresses": [customer_email], "CcAddresses": [from_email]},
         Message={
             "Subject": {"Data": subject, "Charset": "UTF-8"},
             "Body": {

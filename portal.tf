@@ -55,6 +55,11 @@ resource "aws_iam_role_policy" "portal_lambda_policy" {
       },
       {
         Effect   = "Allow"
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/digital-labs-portal:*"
       }
@@ -82,6 +87,8 @@ resource "aws_lambda_function" "portal" {
       REQUESTS_TABLE     = aws_dynamodb_table.lab_requests.name
       CODEBUILD_PROJECT  = aws_codebuild_project.digital_labs_provisioner.name
       ACCESS_CODE_PARAM  = aws_ssm_parameter.portal_access_code.name
+      SES_FROM_EMAIL     = var.ses_from_email
+      NOTIFY_EMAIL       = var.ses_from_email
     }
   }
 }

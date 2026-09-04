@@ -10,10 +10,13 @@ import boto3
 dynamodb = boto3.client("dynamodb")
 codebuild = boto3.client("codebuild")
 ssm = boto3.client("ssm")
+ses = boto3.client("ses")
 
 REQUESTS_TABLE = os.environ["REQUESTS_TABLE"]
 CODEBUILD_PROJECT = os.environ["CODEBUILD_PROJECT"]
 ACCESS_CODE_PARAM = os.environ["ACCESS_CODE_PARAM"]
+SES_FROM_EMAIL = os.environ["SES_FROM_EMAIL"]
+NOTIFY_EMAIL = os.environ["NOTIFY_EMAIL"]
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 VALID_LEASES = {"1w", "2w", "3w", "1mo"}
@@ -120,6 +123,21 @@ def handler(event, context):
                 {"name": "TRIGGERED_BY", "value": lab_key, "type": "PLAINTEXT"},
             ],
         )
+
+        try:
+            ses.send_email(
+                Source=SES_FROM_EMAIL,
+                Destination={"ToAddresses": [NOTIFY_EMAIL]},
+                Message={
+                    "Subject": {"Data": f"[Digital Labs] New lab request: {customer_email}", "Charset": "UTF-8"},
+                    "Body": {"Text": {
+                        "Data": f"New lab request submitted.\n\nLab ID: {lab_key}\nCustomer: {customer_email}\nLease: {lease_duration}\n\nProvisioning now, ready in ~10-15 minutes.",
+                        "Charset": "UTF-8",
+                    }},
+                },
+            )
+        except Exception:
+            pass  # Notification failure shouldn't block the actual request
 
         return _html_response(
             200,
