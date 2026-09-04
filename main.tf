@@ -130,6 +130,37 @@ resource "aws_iam_role_policy_attachment" "s3_assets_policy" {
   policy_arn = aws_iam_policy.s3_assets_read.arn
 }
 
+# Wiz Runtime Sensor: required on all EC2 deployments per Sonatype InfoSec
+# standard (SEC space, "EC2/AMI Deployment Instruction"). Secrets are
+# centrally managed in InfoSec's AWS account (193494411491) — this grants
+# our lab instances read/decrypt access only, never creates or stores the
+# secret itself.
+resource "aws_iam_policy" "wiz_sensor_access" {
+  name = "digital-labs-wiz-sensor-access"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AllowWizSecretsAccess"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = ["arn:aws:secretsmanager:us-east-1:193494411491:secret:wiz-service-acount-fXF1G8"]
+      },
+      {
+        Sid      = "AllowWizKMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = "arn:aws:kms:us-east-1:193494411491:key/f28d1055-afab-4db0-b991-54d4cf1be813"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "wiz_sensor_policy" {
+  role       = aws_iam_role.lab_ssm_role.name
+  policy_arn = aws_iam_policy.wiz_sensor_access.arn
+}
+
 resource "aws_iam_instance_profile" "lab_profile" {
   name = "digital-labs-instance-profile"
   role = aws_iam_role.lab_ssm_role.name

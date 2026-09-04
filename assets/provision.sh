@@ -1,6 +1,38 @@
 #!/bin/bash
 set -euxo pipefail
 
+# ---------------------------------------------------------------------------
+# Wiz Runtime Sensor — required on all EC2 deployments per Sonatype InfoSec
+# standard (Confluence SEC space, "EC2/AMI Deployment Instruction", updated
+# 2026-09-03). Credentials are centrally managed by InfoSec in their AWS
+# account; this instance only reads and decrypts them, never stores or
+# manages the secret itself.
+# set +x: suppress xtrace so WIZ_API_CLIENT_ID/SECRET never appear in
+# cloud-init logs, matching the pattern already used for the Sonatype
+# license and Claude API key below.
+set +x
+WIZ_SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "arn:aws:secretsmanager:us-east-1:193494411491:secret:wiz-service-acount-fXF1G8" \
+  --region us-east-1 \
+  --query SecretString \
+  --output text)
+export WIZ_API_CLIENT_ID=$(echo "$WIZ_SECRET_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('WIZ_API_CLIENT_ID',''))")
+export WIZ_API_CLIENT_SECRET=$(echo "$WIZ_SECRET_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('WIZ_API_CLIENT_SECRET',''))")
+set -x
+
+if [ -z "$WIZ_API_CLIENT_ID" ] || [ -z "$WIZ_API_CLIENT_SECRET" ]; then
+  echo "ERROR: Failed to retrieve Wiz credentials — continuing boot without the sensor" >&2
+else
+  curl -o /tmp/wiz-sensor-installer.sh https://downloads.wiz.io/sensor/sensor_install.sh
+  chmod +x /tmp/wiz-sensor-installer.sh
+  /tmp/wiz-sensor-installer.sh || echo "WARNING: Wiz sensor install failed — continuing boot" >&2
+  systemctl status wiz-sensor --no-pager || true
+fi
+set +x
+WIZ_API_CLIENT_ID="cleared"
+WIZ_API_CLIENT_SECRET="cleared"
+set -x
+
 # Install Docker
 dnf -y install docker zip python3
 systemctl enable --now docker
