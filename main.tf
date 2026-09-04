@@ -301,6 +301,20 @@ resource "aws_s3_object" "provision_sh" {
   etag   = filemd5("${path.module}/assets/provision.sh")
 }
 
+resource "aws_s3_object" "lab_tutor_widget_js" {
+  bucket = "digital-labs-tfstate-${data.aws_caller_identity.current.account_id}"
+  key    = "assets/lab-tutor-widget.js"
+  source = "${path.module}/assets/lab-tutor-widget.js"
+  etag   = filemd5("${path.module}/assets/lab-tutor-widget.js")
+}
+
+resource "aws_s3_object" "lab_tutor_beacon_js" {
+  bucket = "digital-labs-tfstate-${data.aws_caller_identity.current.account_id}"
+  key    = "assets/lab-tutor-beacon.js"
+  source = "${path.module}/assets/lab-tutor-beacon.js"
+  etag   = filemd5("${path.module}/assets/lab-tutor-beacon.js")
+}
+
 # ---------------------------------------------------------------------------
 # Lab module instances
 # ---------------------------------------------------------------------------
@@ -330,6 +344,8 @@ module "lab" {
     aws_s3_object.proxy_py,
     aws_s3_object.tutor_html,
     aws_s3_object.provision_sh,
+    aws_s3_object.lab_tutor_widget_js,
+    aws_s3_object.lab_tutor_beacon_js,
   ]
 }
 
