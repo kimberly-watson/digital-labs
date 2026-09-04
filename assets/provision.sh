@@ -36,6 +36,11 @@ docker run -d \
 # Version pinned — sonatype/nexus-iq-server:latest pulls unpredictably and can break labs.
 # To upgrade: verify new version in staging, update the tag below, and re-test.
 mkdir -p /opt/sonatype/iq-server/log
+# 1.203.3 runs the IQ Server process as a non-root user inside the container,
+# unlike the older 1.201.0-02 build. Without this, it can't write to the
+# host-mounted log directory and crash-loops with "Permission denied" on
+# /var/log/nexus-iq-server/stderr.log.
+chmod 777 /opt/sonatype/iq-server/log
 docker run -d \
   --name iq-server \
   --restart=always \
@@ -47,7 +52,7 @@ docker run -d \
   --log-opt awslogs-region=${REGION} \
   --log-opt awslogs-group=/digital-labs/iq-server \
   --log-opt awslogs-create-group=true \
-  sonatype/nexus-iq-server:1.201.0-02
+  sonatype/nexus-iq-server:1.203.3
 
 # Wait for IQ Server to be ready, then upload license via REST API
 # Phase 1: Wait until IQ is responding and issues a CSRF cookie
@@ -284,6 +289,9 @@ chmod 644 /usr/share/nginx/html/index.html
 aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/lab-tutor-widget.js /var/www/html/lab-tutor-widget.js
 chmod 644 /var/www/html/lab-tutor-widget.js
 
+aws s3 cp s3://${ASSETS_BUCKET}/${ASSETS_PREFIX}/lab-tutor-beacon.js /var/www/html/lab-tutor-beacon.js
+chmod 644 /var/www/html/lab-tutor-beacon.js
+
 useradd -r -s /sbin/nologin -M labclock || true
 
 # == LAB TUTOR ==
@@ -378,11 +386,11 @@ server {
         proxy_read_timeout 120s;
     }
 
-    # Lab Tutor standalone popup window
+    # Lab Tutor standalone popup window — proxy.py serves the HTML
+    # directly on any GET request; there is no static file at this path.
     location = /tutor {
-        alias /var/www/html/tutor.html;
-        add_header Content-Type "text/html; charset=utf-8";
-        add_header X-Frame-Options "SAMEORIGIN";
+        proxy_pass http://127.0.0.1:8090/;
+        proxy_set_header Host $host;
     }
 
     # Beacon JS
